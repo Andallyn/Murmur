@@ -1338,8 +1338,17 @@ export default function App() {
       ) : null}
 
       {activeMenuPanel ? (
-        <section className="menu-panel-shell" aria-label="Menu panel">
-          <div className="menu-panel-heading">
+        <div
+          className="settings-drawer-backdrop"
+          role="presentation"
+          onClick={() => setActiveMenuPanel(null)}
+        >
+          <aside
+            className="settings-drawer"
+            aria-label="Menu panel"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="menu-panel-heading">
             <p className="eyebrow">
               {activeMenuPanel === 'settings'
                 ? 'Settings'
@@ -1603,7 +1612,8 @@ export default function App() {
               ) : null}
             </article>
           ) : null}
-        </section>
+          </aside>
+        </div>
       ) : null}
 
       <section className="memo-toolbar" aria-label="Memo search">

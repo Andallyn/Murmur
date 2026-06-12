@@ -145,7 +145,7 @@ button:disabled {
 }
 
 .welcome-card,
-.menu-panel-shell {
+.settings-drawer {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 28px;
   background: rgba(13, 9, 24, 0.74);
@@ -166,18 +166,32 @@ button:disabled {
   font-size: clamp(1.55rem, 4vw, 2.5rem);
 }
 
-.menu-panel-shell {
-  display: grid;
-  gap: 16px;
-  margin-bottom: 18px;
-  padding: 18px;
-}
-
 .menu-panel-heading {
   display: flex;
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+}
+
+.settings-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  padding: 18px;
+  background: rgba(4, 2, 10, 0.46);
+  backdrop-filter: blur(6px);
+}
+
+.settings-drawer {
+  display: grid;
+  align-content: start;
+  width: min(100%, 560px);
+  max-height: calc(100vh - 36px);
+  gap: 16px;
+  overflow: auto;
+  padding: 18px;
 }
 
 .lock-screen {
@@ -908,6 +922,14 @@ audio {
 }
 
 @media (max-width: 640px) {
+  .settings-drawer-backdrop {
+    padding: 10px;
+  }
+
+  .settings-drawer {
+    max-height: calc(100vh - 20px);
+  }
+
   .hero,
   .recorder-panel,
   .memo-toolbar,
