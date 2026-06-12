@@ -932,6 +932,119 @@ label span {
   gap: 18px;
 }
 
+.memo-list {
+  display: grid;
+  gap: 22px;
+}
+
+.memo-date-group {
+  display: grid;
+  gap: 10px;
+}
+
+.memo-date-group h3 {
+  margin: 0;
+  color: #fbcfe8;
+  font-size: 0.88rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.memo-list-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.memo-list-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 76px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(139, 92, 246, 0.22), transparent 34%),
+    rgba(13, 9, 24, 0.76);
+  color: #f8fafc;
+  text-align: left;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px);
+}
+
+.memo-list-mood {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 1.8rem;
+}
+
+.memo-list-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.memo-list-copy strong,
+.memo-list-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memo-list-copy strong {
+  color: #fff7ed;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.memo-list-copy small {
+  color: #a99abc;
+  font-size: 0.88rem;
+}
+
+.memo-list-meta {
+  display: grid;
+  gap: 7px;
+  justify-items: end;
+  color: #a99abc;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.memo-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: grid;
+  align-items: end;
+  padding: 18px;
+  background: rgba(4, 2, 10, 0.52);
+  backdrop-filter: blur(7px);
+}
+
+.memo-detail-sheet {
+  width: min(760px, 100%);
+  max-height: min(88vh, 860px);
+  margin: 0 auto;
+  overflow: auto;
+}
+
+.memo-detail-card {
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
+}
+
+.detail-header-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
 .memo-groups {
   display: grid;
   gap: 16px;

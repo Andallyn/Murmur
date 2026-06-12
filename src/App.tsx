@@ -169,6 +169,10 @@ function getMoodLabel(mood: string): string {
   return moodLabels[mood] ?? `🏷️ ${mood}`;
 }
 
+function getMoodEmoji(mood: string): string {
+  return (mood || fallbackMoodTag).split(' ')[0] || '✨';
+}
+
 function getMemoMood(memo: VoiceMemo): string {
   return memo.series || fallbackMoodTag;
 }
@@ -220,9 +224,55 @@ function createTitleFromGist(summary: string, transcript: string): string {
     return '';
   }
 
-  return compactTitle.length > 58
-    ? `${compactTitle.slice(0, 55).trim()}...`
-    : compactTitle;
+  return compactTitle.split(' ').slice(0, 5).join(' ');
+}
+
+function getMemoDisplayTitle(memo: VoiceMemo): string {
+  if (!isDefaultMemoTitle(memo.title)) {
+    return memo.title;
+  }
+
+  return createTitleFromGist(memo.summary, memo.transcript) || memo.title;
+}
+
+function getMemoGistPreview(memo: VoiceMemo): string {
+  if (memo.aiStatus === 'processing') {
+    return 'AI is pulling the gist...';
+  }
+
+  if (memo.aiStatus === 'failed') {
+    return memo.aiError || 'AI gist needs a retry.';
+  }
+
+  return memo.summary || memo.transcript || 'Tap to add notes and details.';
+}
+
+function getDateBucket(createdAt: string): string {
+  const createdDate = new Date(createdAt);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfCreatedDay = new Date(
+    createdDate.getFullYear(),
+    createdDate.getMonth(),
+    createdDate.getDate(),
+  );
+  const elapsedDays = Math.floor(
+    (startOfToday.getTime() - startOfCreatedDay.getTime()) / 86_400_000,
+  );
+
+  if (elapsedDays <= 0) {
+    return 'Today';
+  }
+
+  if (elapsedDays === 1) {
+    return 'Yesterday';
+  }
+
+  if (elapsedDays < 7) {
+    return 'This week';
+  }
+
+  return 'Older';
 }
 
 function getStoredReminderSettings(): ReminderSettings {
@@ -305,6 +355,7 @@ export default function App() {
   const [memos, setMemos] = useState<VoiceMemo[]>([]);
   const [drafts, setDrafts] = useState<Record<string, DraftMemo>>({});
   const [query, setQuery] = useState('');
+  const [selectedMemoId, setSelectedMemoId] = useState<string | null>(null);
   const [recordingState, setRecordingState] =
     useState<RecordingState>('idle');
   const [recordingMs, setRecordingMs] = useState(0);
@@ -560,29 +611,26 @@ export default function App() {
     [memos, query],
   );
 
-  const groupedMemos = useMemo(() => {
-    const groupedByMood = new Map<string, VoiceMemo[]>();
+  const memoDateGroups = useMemo(() => {
+    const groupedByDate = new Map<string, VoiceMemo[]>();
 
     filteredMemos.forEach((memo) => {
-      const mood = getMemoMood(memo);
-      const currentMemos = groupedByMood.get(mood) ?? [];
-      groupedByMood.set(mood, [...currentMemos, memo]);
+      const dateBucket = getDateBucket(memo.createdAt);
+      const currentMemos = groupedByDate.get(dateBucket) ?? [];
+      groupedByDate.set(dateBucket, [...currentMemos, memo]);
     });
 
-    const orderedMoodTags = [
-      ...moodTags,
-      ...Array.from(groupedByMood.keys()).filter(
-        (mood) => !moodTags.includes(mood),
-      ),
-    ];
-
-    return orderedMoodTags
-      .map((mood) => ({
-        mood,
-        memos: groupedByMood.get(mood) ?? [],
+    return ['Today', 'Yesterday', 'This week', 'Older']
+      .map((label) => ({
+        label,
+        memos: groupedByDate.get(label) ?? [],
       }))
       .filter((group) => group.memos.length > 0);
   }, [filteredMemos]);
+
+  const selectedMemo = selectedMemoId
+    ? memos.find((memo) => memo.id === selectedMemoId)
+    : null;
 
   const totalDurationMs = useMemo(
     () => memos.reduce((total, memo) => total + memo.durationMs, 0),
@@ -964,6 +1012,9 @@ export default function App() {
         delete nextDrafts[memo.id];
         return nextDrafts;
       });
+      setSelectedMemoId((currentId) =>
+        currentId === memo.id ? null : currentId,
+      );
       await syncMemosToSia(nextMemos, 'Recording removed and Sia updated.');
       setError('');
     } catch {
@@ -1844,7 +1895,7 @@ export default function App() {
           <span className="sr-only">Search memos</span>
           <input
             type="search"
-            placeholder="Search titles, moods, or notes"
+            placeholder="Search titles, moods, gists, or notes"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -1853,148 +1904,37 @@ export default function App() {
 
       {isLoading ? (
         <p className="empty-state">Loading saved memos...</p>
-      ) : groupedMemos.length ? (
-        <section className="memo-groups" aria-label="Saved voice memos">
-          {groupedMemos.map((group, groupIndex) => (
-            <details className="memo-group" key={group.mood} open={groupIndex === 0}>
-              <summary>
-                <span>{getMoodLabel(group.mood)}</span>
-                <small>{group.memos.length}</small>
-              </summary>
-              <div className="memo-grid">
-                {group.memos.map((memo) => {
-                  const draft = drafts[memo.id] ?? {
-                    title: memo.title,
-                    series: memo.series,
-                    notes: memo.notes,
-                  };
-                  const hasChanges =
-                    draft.title !== memo.title ||
-                    draft.series !== memo.series ||
-                    draft.notes !== memo.notes;
-
-                  return (
-                    <article className="memo-card" key={memo.id}>
-                <div className="memo-card-header">
-                  <div>
-                    <label>
-                      <span>Title</span>
-                      <input
-                        value={draft.title}
-                        onChange={(event) =>
-                          updateDraft(memo.id, 'title', event.target.value)
-                        }
-                      />
-                    </label>
-                    <time dateTime={memo.createdAt}>
-                      {formatMemoTime(memo.createdAt)}
-                    </time>
-                  </div>
-                  <span className="duration-pill">
-                    {formatDuration(memo.durationMs)}
-                  </span>
-                </div>
-
-                <div className="mood-picker">
-                  <span>Mood tag</span>
-                  <div className="mood-chip-row" role="list">
-                    {moodTags.map((mood) => (
-                      <button
-                        className={`mood-chip ${
-                          draft.series === mood ? 'mood-chip-selected' : ''
-                        }`}
-                        key={mood}
-                        type="button"
-                        onClick={() =>
-                          updateDraft(
-                            memo.id,
-                            'series',
-                            draft.series === mood ? '' : mood,
-                          )
-                        }
-                      >
-                        {mood}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <MemoAudio memo={memo} />
-
-                <div className={`ai-insight ai-${memo.aiStatus}`}>
-                  <div>
-                    <span>AI gist</span>
-                    {memo.aiStatus === 'processing' ? (
-                      <p>Pulling the gist from your voice note...</p>
-                    ) : null}
-                    {memo.aiStatus === 'complete' ? (
-                      <p>{memo.summary || 'Transcript ready.'}</p>
-                    ) : null}
-                    {memo.aiStatus === 'failed' ? (
-                      <p>{memo.aiError || 'AI transcription failed.'}</p>
-                    ) : null}
-                    {memo.aiStatus === 'idle' ? (
-                      <p>AI gist will appear after transcription.</p>
-                    ) : null}
-                  </div>
-                  {memo.aiStatus === 'failed' ? (
-                    <button
-                      className="secondary-button"
-                      onClick={() => void retryAnalysis(memo)}
-                    >
-                      Retry AI
-                    </button>
-                  ) : null}
-                  {memo.aiStatus === 'complete' && memo.transcript ? (
-                    <details>
-                      <summary>Transcript</summary>
-                      <p>{memo.transcript}</p>
-                    </details>
-                  ) : null}
-                </div>
-
-                <label>
-                  <span>Notes</span>
-                  <textarea
-                    placeholder="Add context, keywords, or follow-up thoughts..."
-                    value={draft.notes}
-                    onChange={(event) =>
-                      updateDraft(memo.id, 'notes', event.target.value)
-                    }
-                  />
-                </label>
-
-                <div className="memo-meta">
-                  <span>{memo.series || fallbackMoodTag}</span>
-                  <span>{formatMemoTime(memo.createdAt)}</span>
-                </div>
-
-                <div className="memo-actions">
+      ) : memoDateGroups.length ? (
+        <section className="memo-list" aria-label="Saved voice memos">
+          {memoDateGroups.map((group) => (
+            <section className="memo-date-group" key={group.label}>
+              <h3>{group.label}</h3>
+              <div className="memo-list-stack">
+                {group.memos.map((memo) => (
                   <button
-                    className="primary-button"
-                    disabled={!hasChanges}
-                    onClick={() => void saveDraft(memo)}
+                    className="memo-list-card"
+                    key={memo.id}
+                    onClick={() => setSelectedMemoId(memo.id)}
                   >
-                    Save details
+                    <span className="memo-list-mood" aria-hidden="true">
+                      {getMoodEmoji(getMemoMood(memo))}
+                    </span>
+                    <span className="memo-list-copy">
+                      <strong>{getMemoDisplayTitle(memo)}</strong>
+                      <small>{getMemoGistPreview(memo)}</small>
+                    </span>
+                    <span className="memo-list-meta">
+                      <span className="duration-pill">
+                        {formatDuration(memo.durationMs)}
+                      </span>
+                      <time dateTime={memo.createdAt}>
+                        {formatMemoTime(memo.createdAt)}
+                      </time>
+                    </span>
                   </button>
-                  <button
-                    className="secondary-button"
-                    onClick={() => exportMemo(memo)}
-                  >
-                    Export
-                  </button>
-                  <button
-                    className="delete-button"
-                    onClick={() => void removeMemo(memo)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </article>
-            );
-                })}
+                ))}
               </div>
-            </details>
+            </section>
           ))}
         </section>
       ) : (
@@ -2004,6 +1944,167 @@ export default function App() {
             : 'Record your first memo to start your library.'}
         </p>
       )}
+
+      {selectedMemo ? (
+        <div
+          className="memo-detail-backdrop"
+          role="presentation"
+          onClick={() => setSelectedMemoId(null)}
+        >
+          <aside
+            className="memo-detail-sheet"
+            aria-label={`${selectedMemo.title} details`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(() => {
+              const draft = drafts[selectedMemo.id] ?? {
+                title: selectedMemo.title,
+                series: selectedMemo.series,
+                notes: selectedMemo.notes,
+              };
+              const hasChanges =
+                draft.title !== selectedMemo.title ||
+                draft.series !== selectedMemo.series ||
+                draft.notes !== selectedMemo.notes;
+
+              return (
+                <article className="memo-card memo-detail-card">
+                  <div className="memo-card-header">
+                    <div>
+                      <label>
+                        <span>Title</span>
+                        <input
+                          value={draft.title}
+                          onChange={(event) =>
+                            updateDraft(
+                              selectedMemo.id,
+                              'title',
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <time dateTime={selectedMemo.createdAt}>
+                        {formatMemoTime(selectedMemo.createdAt)}
+                      </time>
+                    </div>
+                    <div className="detail-header-actions">
+                      <span className="duration-pill">
+                        {formatDuration(selectedMemo.durationMs)}
+                      </span>
+                      <button
+                        className="text-danger-button"
+                        onClick={() => setSelectedMemoId(null)}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mood-picker">
+                    <span>Mood tag</span>
+                    <div className="mood-chip-row" role="list">
+                      {moodTags.map((mood) => (
+                        <button
+                          className={`mood-chip ${
+                            draft.series === mood ? 'mood-chip-selected' : ''
+                          }`}
+                          key={mood}
+                          type="button"
+                          onClick={() =>
+                            updateDraft(
+                              selectedMemo.id,
+                              'series',
+                              draft.series === mood ? '' : mood,
+                            )
+                          }
+                        >
+                          {mood}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <MemoAudio memo={selectedMemo} />
+
+                  <div className={`ai-insight ai-${selectedMemo.aiStatus}`}>
+                    <div>
+                      <span>AI gist</span>
+                      {selectedMemo.aiStatus === 'processing' ? (
+                        <p>Pulling the gist from your voice note...</p>
+                      ) : null}
+                      {selectedMemo.aiStatus === 'complete' ? (
+                        <p>{selectedMemo.summary || 'Transcript ready.'}</p>
+                      ) : null}
+                      {selectedMemo.aiStatus === 'failed' ? (
+                        <p>
+                          {selectedMemo.aiError ||
+                            'AI transcription failed.'}
+                        </p>
+                      ) : null}
+                      {selectedMemo.aiStatus === 'idle' ? (
+                        <p>AI gist will appear after transcription.</p>
+                      ) : null}
+                    </div>
+                    {selectedMemo.aiStatus === 'failed' ? (
+                      <button
+                        className="secondary-button"
+                        onClick={() => void retryAnalysis(selectedMemo)}
+                      >
+                        Retry AI
+                      </button>
+                    ) : null}
+                    {selectedMemo.aiStatus === 'complete' &&
+                    selectedMemo.transcript ? (
+                      <details>
+                        <summary>Transcript</summary>
+                        <p>{selectedMemo.transcript}</p>
+                      </details>
+                    ) : null}
+                  </div>
+
+                  <label>
+                    <span>Notes</span>
+                    <textarea
+                      placeholder="Add context, keywords, or follow-up thoughts..."
+                      value={draft.notes}
+                      onChange={(event) =>
+                        updateDraft(
+                          selectedMemo.id,
+                          'notes',
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </label>
+
+                  <div className="memo-actions">
+                    <button
+                      className="primary-button"
+                      disabled={!hasChanges}
+                      onClick={() => void saveDraft(selectedMemo)}
+                    >
+                      Save details
+                    </button>
+                    <button
+                      className="secondary-button"
+                      onClick={() => exportMemo(selectedMemo)}
+                    >
+                      Export
+                    </button>
+                    <button
+                      className="delete-button"
+                      onClick={() => void removeMemo(selectedMemo)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              );
+            })()}
+          </aside>
+        </div>
+      ) : null}
     </main>
   );
 }
