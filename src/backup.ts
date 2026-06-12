@@ -103,6 +103,12 @@ export async function readBackupFile(file: File): Promise<VoiceMemo[]> {
   const restoredMemos = await Promise.all(
     rawBackup.memos.map(async (memo) => {
       const blob = await dataUrlToBlob(memo.audioData);
+      const aiStatus: AiStatus =
+        memo.aiStatus === 'processing' ||
+        memo.aiStatus === 'complete' ||
+        memo.aiStatus === 'failed'
+          ? memo.aiStatus
+          : 'idle';
 
       return {
         id: memo.id,
@@ -111,7 +117,7 @@ export async function readBackupFile(file: File): Promise<VoiceMemo[]> {
         notes: memo.notes,
         transcript: memo.transcript ?? '',
         summary: memo.summary ?? '',
-        aiStatus: memo.aiStatus === 'complete' ? 'complete' : 'idle',
+        aiStatus,
         aiError: memo.aiError ?? '',
         createdAt: memo.createdAt,
         durationMs: memo.durationMs,

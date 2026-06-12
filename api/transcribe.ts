@@ -132,8 +132,7 @@ export default async function handler(
     return;
   }
 
-  let body: TranscribeBody | null = null;
-
+  let body: TranscribeBody | null;
   try {
     body = parseBody(request.body);
   } catch {
