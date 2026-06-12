@@ -49,7 +49,7 @@ export function matchesMemo(memo: VoiceMemo, query: string): boolean {
     return true;
   }
 
-  return `${memo.title} ${memo.series} ${memo.notes} ${memo.summary} ${memo.transcript}`
+  return `${memo.title} ${memo.series} ${memo.notes}`
     .toLowerCase()
     .includes(normalizedQuery);
 }

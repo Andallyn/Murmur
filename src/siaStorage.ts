@@ -43,7 +43,7 @@ function getAppMetadata(): AppMetadata {
   return {
     appId: MURMUR_SIA_APP_ID,
     name: 'Murmur',
-    description: 'Private voice memo backups on Sia decentralized storage',
+    description: 'Private voice memo backups for Murmur',
     serviceUrl: origin,
     logoUrl: `${origin}/murmur-mark.svg`,
     callbackUrl: undefined,
@@ -118,7 +118,7 @@ async function getConnectedSdk(): Promise<Sdk> {
   const appKeyHex = localStorage.getItem(SIA_APP_KEY_STORAGE_KEY);
 
   if (!appKeyHex) {
-    throw new Error('Set up Sia storage before using Murmur.');
+    throw new Error('Set up storage before using Murmur.');
   }
 
   await initSia();
@@ -128,7 +128,7 @@ async function getConnectedSdk(): Promise<Sdk> {
 
   if (!sdk) {
     localStorage.removeItem(SIA_APP_KEY_STORAGE_KEY);
-    throw new Error('Sia connection expired. Please connect again.');
+    throw new Error('Storage connection expired. Please connect again.');
   }
 
   activeSdk = sdk;
@@ -243,7 +243,7 @@ export async function downloadSiaBackup(objectId: string): Promise<File> {
   const stream = sdk.download(object);
   const blob = await new Response(stream).blob();
 
-  return new File([blob], 'murmur-sia-backup.json', {
+  return new File([blob], 'murmur-cloud-backup.json', {
     type: 'application/json',
   });
 }

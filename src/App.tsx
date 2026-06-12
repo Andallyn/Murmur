@@ -12,7 +12,6 @@ import {
   createBackupFileName,
   readBackupFile,
 } from './backup';
-import { analyzeRecording } from './ai';
 import {
   deleteMemo,
   getAllMemos,
@@ -196,42 +195,12 @@ function formatMemoTime(createdAt: string): string {
   });
 }
 
-function isDefaultMemoTitle(title: string): boolean {
-  return title === 'Untitled memo' || title.startsWith('Memo ');
-}
-
-function createTitleFromGist(summary: string, transcript: string): string {
-  const source = summary || transcript;
-  const compactTitle = source
-    .replace(/\s+/g, ' ')
-    .replace(/[.!?]+$/g, '')
-    .trim();
-
-  if (!compactTitle) {
-    return '';
-  }
-
-  return compactTitle.split(' ').slice(0, 5).join(' ');
-}
-
 function getMemoDisplayTitle(memo: VoiceMemo): string {
-  if (!isDefaultMemoTitle(memo.title)) {
-    return memo.title;
-  }
-
-  return createTitleFromGist(memo.summary, memo.transcript) || memo.title;
+  return memo.title;
 }
 
-function getMemoGistPreview(memo: VoiceMemo): string {
-  if (memo.aiStatus === 'processing') {
-    return 'AI is pulling the gist...';
-  }
-
-  if (memo.aiStatus === 'failed') {
-    return memo.aiError || 'AI gist needs a retry.';
-  }
-
-  return memo.summary || memo.transcript || 'Tap to add notes and details.';
+function getMemoPreview(memo: VoiceMemo): string {
+  return memo.notes || 'Tap to add notes and details.';
 }
 
 function getDateBucket(createdAt: string): string {
@@ -457,7 +426,7 @@ export default function App() {
         }
       } catch {
         if (isMounted) {
-          setSiaStatus('Reconnect to Sia to use Murmur storage.');
+          setSiaStatus('Reconnect storage to use Murmur.');
         }
       }
     };
@@ -664,7 +633,7 @@ export default function App() {
     successMessage: string,
   ) => {
     setIsSiaSyncing(true);
-    setSiaStatus('Syncing recordings to Sia...');
+    setSiaStatus('Syncing recordings...');
 
     try {
       const record = await uploadSiaBackup(memosToSync);
@@ -675,92 +644,12 @@ export default function App() {
       setSiaStatus(
         siaError instanceof Error
           ? siaError.message
-          : 'Unable to sync recordings to Sia.',
+          : 'Unable to sync recordings.',
       );
       throw siaError;
     } finally {
       setIsSiaSyncing(false);
     }
-  };
-
-  const saveAnalyzedMemo = async (
-    memo: VoiceMemo,
-    updates: Partial<
-      Pick<
-        VoiceMemo,
-        'title' | 'transcript' | 'summary' | 'aiStatus' | 'aiError'
-      >
-    >,
-    syncMessage: string,
-  ) => {
-    await saveMemo({
-      ...memo,
-      ...updates,
-    });
-    const loadedMemos = await getAllMemos();
-
-    setMemos(loadedMemos);
-    setDrafts(createDrafts(loadedMemos));
-
-    try {
-      await syncMemosToSia(loadedMemos, syncMessage);
-    } catch {
-      // syncMemosToSia already surfaces the Sia error in the UI.
-    }
-  };
-
-  const analyzeMemo = async (memo: VoiceMemo) => {
-    try {
-      const analysis = await analyzeRecording(memo.blob, memo.mimeType);
-      const suggestedTitle = createTitleFromGist(
-        analysis.summary,
-        analysis.transcript,
-      );
-
-      await saveAnalyzedMemo(
-        memo,
-        {
-          title:
-            suggestedTitle && isDefaultMemoTitle(memo.title)
-              ? suggestedTitle
-              : memo.title,
-          transcript: analysis.transcript,
-          summary: analysis.summary,
-          aiStatus: 'complete',
-          aiError: '',
-        },
-        'AI gist saved and synced to Sia.',
-      );
-    } catch (analysisError) {
-      await saveAnalyzedMemo(
-        memo,
-        {
-          transcript: '',
-          summary: '',
-          aiStatus: 'failed',
-          aiError:
-            analysisError instanceof Error
-              ? analysisError.message
-              : 'AI could not transcribe this memo. Try again later.',
-        },
-        'Recording saved, but AI transcription needs a retry.',
-      );
-    }
-  };
-
-  const retryAnalysis = async (memo: VoiceMemo) => {
-    const processingMemo: VoiceMemo = {
-      ...memo,
-      aiStatus: 'processing',
-      aiError: '',
-    };
-
-    await saveMemo(processingMemo);
-    const loadedMemos = await getAllMemos();
-
-    setMemos(loadedMemos);
-    setDrafts(createDrafts(loadedMemos));
-    void analyzeMemo(processingMemo);
   };
 
   const persistRecording = async (mimeType: string) => {
@@ -784,10 +673,6 @@ export default function App() {
       title: createDefaultTitle(createdAt),
       series: '',
       notes: '',
-      transcript: '',
-      summary: '',
-      aiStatus: 'processing',
-      aiError: '',
       createdAt: createdAt.toISOString(),
       durationMs: finalDurationRef.current,
       blob,
@@ -808,15 +693,11 @@ export default function App() {
           notes: savedMemo.notes,
         },
       }));
-      await syncMemosToSia(
-        nextMemos,
-        'Recording saved. AI is pulling the gist.',
-      );
-      void analyzeMemo(savedMemo);
+      await syncMemosToSia(nextMemos, 'Recording saved and synced.');
       setRecordingMs(0);
       setError('');
     } catch {
-      setError('Recording finished, but it could not be saved to Sia.');
+      setError('Recording finished, but it could not be saved.');
     } finally {
       resetRecordingRefs();
     }
@@ -973,16 +854,16 @@ export default function App() {
           notes: updatedMemo.notes,
         },
       }));
-      await syncMemosToSia(nextMemos, 'Recording details synced to Sia.');
+      await syncMemosToSia(nextMemos, 'Recording details synced.');
       setError('');
     } catch {
-      setError('Unable to sync this recording update to Sia.');
+      setError('Unable to sync this recording update.');
     }
   };
 
   const removeMemo = async (memo: VoiceMemo) => {
     const shouldDelete = window.confirm(
-      `Delete "${memo.title}"? This removes it from Murmur and updates Sia.`,
+      `Delete "${memo.title}"? This removes it from Murmur and updates your cloud backup.`,
     );
 
     if (!shouldDelete) {
@@ -1002,10 +883,10 @@ export default function App() {
       setSelectedMemoId((currentId) =>
         currentId === memo.id ? null : currentId,
       );
-      await syncMemosToSia(nextMemos, 'Recording removed and Sia updated.');
+      await syncMemosToSia(nextMemos, 'Recording removed and backup updated.');
       setError('');
     } catch {
-      setError('Unable to sync this deletion to Sia.');
+      setError('Unable to sync this deletion.');
     }
   };
 
@@ -1066,7 +947,7 @@ export default function App() {
       const loadedMemos = await getAllMemos();
       setMemos(loadedMemos);
       setDrafts(createDrafts(loadedMemos));
-      await syncMemosToSia(loadedMemos, 'Restored recordings synced to Sia.');
+      await syncMemosToSia(loadedMemos, 'Restored recordings synced.');
       setBackupStatus(
         `Restored ${backupMemos.length} ${
           backupMemos.length === 1 ? 'memo' : 'memos'
@@ -1084,14 +965,14 @@ export default function App() {
 
   const connectSiaStorage = async () => {
     setIsSiaBusy(true);
-    setSiaStatus('Opening Sia approval flow...');
+    setSiaStatus('Opening storage approval flow...');
     setSiaApprovalUrl('');
     setSiaRecoveryPhrase('');
 
     try {
       const result = await connectSia(siaRecoveryPhraseToUse, (url) => {
         setSiaApprovalUrl(url);
-        setSiaStatus('Approve Murmur in Sia, then return here.');
+        setSiaStatus('Approve Murmur storage, then return here.');
         window.open(url, '_blank', 'noopener,noreferrer');
       });
       const records = await listSiaBackups();
@@ -1101,14 +982,14 @@ export default function App() {
       setLatestSiaBackup(records[0] ?? getStoredSiaBackup());
       setSiaStatus(
         siaRecoveryPhraseToUse.trim()
-          ? 'Connected to Sia with your recovery phrase.'
-          : 'Connected to Sia. Save the recovery phrase shown below before relying on cloud restore.',
+          ? 'Connected with your recovery phrase.'
+          : 'Connected. Save the recovery phrase shown below before relying on cloud restore.',
       );
     } catch (siaError) {
       setSiaStatus(
         siaError instanceof Error
           ? siaError.message
-          : 'Unable to connect to Sia storage.',
+          : 'Unable to connect storage.',
       );
     } finally {
       setIsSiaBusy(false);
@@ -1117,31 +998,31 @@ export default function App() {
 
   const uploadCloudBackup = async () => {
     if (!memos.length) {
-      setSiaStatus('Record something before syncing to Sia.');
+      setSiaStatus('Record something before syncing.');
       return;
     }
 
     try {
-      await syncMemosToSia(memos, 'All recordings are synced to Sia.');
+      await syncMemosToSia(memos, 'All recordings are synced.');
     } catch (siaError) {
       setSiaStatus(
         siaError instanceof Error
           ? siaError.message
-          : 'Unable to upload backup to Sia.',
+          : 'Unable to upload backup.',
       );
     }
   };
 
   const restoreCloudBackup = async () => {
     setIsSiaBusy(true);
-    setSiaStatus('Looking for the latest Murmur backup on Sia...');
+    setSiaStatus('Looking for the latest Murmur backup...');
 
     try {
       const records = await listSiaBackups();
       const record = records[0] ?? latestSiaBackup;
 
       if (!record) {
-        setSiaStatus('No Murmur backups were found on Sia for this app key.');
+        setSiaStatus('No Murmur backups were found for this recovery key.');
         return;
       }
 
@@ -1149,7 +1030,7 @@ export default function App() {
       await importBackup(backupFile);
       setLatestSiaBackup(record);
       setSiaStatus(
-        `Restored Sia backup from ${new Date(
+        `Restored cloud backup from ${new Date(
           record.uploadedAt,
         ).toLocaleString()}.`,
       );
@@ -1157,7 +1038,7 @@ export default function App() {
       setSiaStatus(
         siaError instanceof Error
           ? siaError.message
-          : 'Unable to restore from Sia.',
+          : 'Unable to restore from cloud backup.',
       );
     } finally {
       setIsSiaBusy(false);
@@ -1406,9 +1287,9 @@ export default function App() {
       <main className="lock-screen">
         <section className="lock-card">
           <Logo />
-          <p className="eyebrow">Sia storage partner</p>
+          <p className="eyebrow">Secure storage</p>
           <h1>Connecting</h1>
-          <p>Preparing Murmur&apos;s Sia storage connection...</p>
+          <p>Preparing Murmur&apos;s storage connection...</p>
         </section>
       </main>
     );
@@ -1419,18 +1300,17 @@ export default function App() {
       <main className="lock-screen">
         <section className="lock-card">
           <Logo />
-          <p className="eyebrow">Sia storage partner</p>
+          <p className="eyebrow">Secure storage</p>
           <h1>Set up storage</h1>
           <p>
-            Murmur stores recordings with Sia. Connect through the Sia approval
-            flow before recording, or paste your saved recovery phrase to
-            restore storage on this device.
+            Connect storage before recording, or paste your saved recovery
+            phrase to restore storage on this device.
           </p>
           <label>
-            <span>Sia recovery phrase</span>
+            <span>Recovery phrase</span>
             <textarea
               className="compact-textarea"
-              placeholder="Paste your saved phrase to restore, or leave blank to create a new Sia storage identity."
+              placeholder="Paste your saved phrase to restore, or leave blank to create a new storage identity."
               value={siaRecoveryPhraseToUse}
               onChange={(event) =>
                 setSiaRecoveryPhraseToUse(event.target.value)
@@ -1442,19 +1322,19 @@ export default function App() {
             disabled={isSiaBusy}
             onClick={() => void connectSiaStorage()}
           >
-            {isSiaBusy ? 'Waiting for Sia approval...' : 'Set up Sia storage'}
+            {isSiaBusy ? 'Waiting for approval...' : 'Set up storage'}
           </button>
           {siaApprovalUrl ? (
             <p className="utility-status">
               Approval page:{' '}
               <a href={siaApprovalUrl} target="_blank" rel="noreferrer">
-                Open Sia approval
+                Open approval
               </a>
             </p>
           ) : null}
           {siaRecoveryPhrase ? (
             <div className="recovery-phrase" role="status">
-              <span>Save this Sia recovery phrase:</span>
+              <span>Save this recovery phrase:</span>
               <code>{siaRecoveryPhrase}</code>
             </div>
           ) : null}
@@ -1725,12 +1605,12 @@ export default function App() {
               <div className="section-heading">
                 <h2>Storage & restore</h2>
                 <p className="panel-copy">
-                  Recording changes sync to Sia automatically. Use these
+                  Recording changes sync automatically. Use these
                   controls only when you need a manual export or restore.
                 </p>
               </div>
               <div className="privacy-status-list">
-                <span>Sia: Connected</span>
+                <span>Storage: Connected</span>
                 <span>
                   Latest snapshot:{' '}
                   {latestSiaBackup
@@ -1756,7 +1636,7 @@ export default function App() {
                   disabled={isSiaBusy || isSiaSyncing}
                   onClick={() => void restoreCloudBackup()}
                 >
-                  Restore from Sia
+                  Restore from cloud
                 </button>
                 <input
                   ref={backupInputRef}
@@ -1770,7 +1650,7 @@ export default function App() {
               </div>
               {latestSiaBackup ? (
                 <p className="utility-status">
-                  Latest Sia object: <code>{latestSiaBackup.objectId}</code>
+                  Latest backup ID: <code>{latestSiaBackup.objectId}</code>
                 </p>
               ) : null}
               {backupStatus ? (
@@ -1882,7 +1762,7 @@ export default function App() {
           <span className="sr-only">Search memos</span>
           <input
             type="search"
-            placeholder="Search titles, moods, gists, or notes"
+            placeholder="Search titles, moods, or notes"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -1908,7 +1788,7 @@ export default function App() {
                     </span>
                     <span className="memo-list-copy">
                       <strong>{getMemoDisplayTitle(memo)}</strong>
-                      <small>{getMemoGistPreview(memo)}</small>
+                      <small>{getMemoPreview(memo)}</small>
                     </span>
                     <span className="memo-list-meta">
                       <span className="duration-pill">
@@ -2013,42 +1893,6 @@ export default function App() {
                   </div>
 
                   <MemoAudio memo={selectedMemo} />
-
-                  <div className={`ai-insight ai-${selectedMemo.aiStatus}`}>
-                    <div>
-                      <span>AI gist</span>
-                      {selectedMemo.aiStatus === 'processing' ? (
-                        <p>Pulling the gist from your voice note...</p>
-                      ) : null}
-                      {selectedMemo.aiStatus === 'complete' ? (
-                        <p>{selectedMemo.summary || 'Transcript ready.'}</p>
-                      ) : null}
-                      {selectedMemo.aiStatus === 'failed' ? (
-                        <p>
-                          {selectedMemo.aiError ||
-                            'AI transcription failed.'}
-                        </p>
-                      ) : null}
-                      {selectedMemo.aiStatus === 'idle' ? (
-                        <p>AI gist will appear after transcription.</p>
-                      ) : null}
-                    </div>
-                    {selectedMemo.aiStatus === 'failed' ? (
-                      <button
-                        className="secondary-button"
-                        onClick={() => void retryAnalysis(selectedMemo)}
-                      >
-                        Retry AI
-                      </button>
-                    ) : null}
-                    {selectedMemo.aiStatus === 'complete' &&
-                    selectedMemo.transcript ? (
-                      <details>
-                        <summary>Transcript</summary>
-                        <p>{selectedMemo.transcript}</p>
-                      </details>
-                    ) : null}
-                  </div>
 
                   <label>
                     <span>Notes</span>

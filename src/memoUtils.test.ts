@@ -15,10 +15,6 @@ function createMemo(overrides: Partial<VoiceMemo>): VoiceMemo {
     title: 'Standup recap',
     series: 'Launch diary',
     notes: 'Ship the recording UI',
-    transcript: 'We agreed to polish the onboarding flow.',
-    summary: 'Polish onboarding before launch.',
-    aiStatus: 'complete',
-    aiError: '',
     createdAt: '2026-06-12T14:21:00.000Z',
     durationMs: 61_000,
     blob: new Blob(['audio']),
@@ -52,7 +48,6 @@ describe('memo utilities', () => {
     expect(matchesMemo(memo, 'standup')).toBe(true);
     expect(matchesMemo(memo, 'launch')).toBe(true);
     expect(matchesMemo(memo, 'recording')).toBe(true);
-    expect(matchesMemo(memo, 'onboarding')).toBe(true);
     expect(matchesMemo(memo, 'budget')).toBe(false);
   });
 

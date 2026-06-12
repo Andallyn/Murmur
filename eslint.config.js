@@ -28,14 +28,4 @@ export default tseslint.config(
       ],
     },
   },
-  {
-    files: ['api/**/*.ts'],
-    languageOptions: {
-      ecmaVersion: 2022,
-      globals: {
-        ...globals.node,
-        ...globals.serviceworker,
-      },
-    },
-  },
 );

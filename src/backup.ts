@@ -1,4 +1,4 @@
-import type { AiStatus, VoiceMemo } from './types';
+import type { VoiceMemo } from './types';
 import { sortMemosByNewest } from './memoUtils';
 
 const BACKUP_APP_ID = 'murmur';
@@ -9,10 +9,6 @@ interface BackupMemo {
   title: string;
   series?: string;
   notes: string;
-  transcript?: string;
-  summary?: string;
-  aiStatus?: AiStatus;
-  aiError?: string;
   createdAt: string;
   durationMs: number;
   mimeType: string;
@@ -71,10 +67,6 @@ export async function createBackupFile(memos: VoiceMemo[]): Promise<Blob> {
       title: memo.title,
       series: memo.series,
       notes: memo.notes,
-      transcript: memo.transcript,
-      summary: memo.summary,
-      aiStatus: memo.aiStatus,
-      aiError: memo.aiError,
       createdAt: memo.createdAt,
       durationMs: memo.durationMs,
       mimeType: memo.mimeType,
@@ -103,22 +95,12 @@ export async function readBackupFile(file: File): Promise<VoiceMemo[]> {
   const restoredMemos = await Promise.all(
     rawBackup.memos.map(async (memo) => {
       const blob = await dataUrlToBlob(memo.audioData);
-      const aiStatus: AiStatus =
-        memo.aiStatus === 'processing' ||
-        memo.aiStatus === 'complete' ||
-        memo.aiStatus === 'failed'
-          ? memo.aiStatus
-          : 'idle';
 
       return {
         id: memo.id,
         title: memo.title,
         series: memo.series ?? '',
         notes: memo.notes,
-        transcript: memo.transcript ?? '',
-        summary: memo.summary ?? '',
-        aiStatus,
-        aiError: memo.aiError ?? '',
         createdAt: memo.createdAt,
         durationMs: memo.durationMs,
         blob,

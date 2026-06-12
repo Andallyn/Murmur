@@ -1158,63 +1158,6 @@ label span {
   box-shadow: 0 12px 32px rgba(236, 72, 153, 0.22);
 }
 
-.ai-insight {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at top left, rgba(139, 92, 246, 0.18), transparent 42%),
-    rgba(255, 255, 255, 0.06);
-}
-
-.ai-insight span,
-.ai-insight summary {
-  color: #fbcfe8;
-  font-size: 0.82rem;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.ai-insight p {
-  margin: 6px 0 0;
-  color: #f8fafc;
-}
-
-.ai-processing {
-  overflow: hidden;
-  background:
-    linear-gradient(90deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.1)),
-    rgba(255, 255, 255, 0.06);
-  background-size: 220% 100%;
-  animation: ai-shimmer 1.8s ease-in-out infinite;
-}
-
-.ai-failed {
-  border-color: rgba(251, 113, 133, 0.34);
-  background: rgba(127, 29, 29, 0.24);
-}
-
-.ai-insight details {
-  padding-top: 4px;
-}
-
-.ai-insight summary {
-  cursor: pointer;
-}
-
-@keyframes ai-shimmer {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  100% {
-    background-position: 220% 50%;
-  }
-}
-
 .duration-pill {
   padding: 8px 10px;
   border-radius: 999px;

@@ -1,21 +1,20 @@
 # Murmur
 
-Murmur is a private, browser-based voice memo recorder built with Sia Foundation
-as the storage partner. It lets you instantly capture recordings, name them
-afterward, tag them with expressive moods, replay saved audio, add searchable
-notes, and restore Sia-backed snapshots on a new device.
+Murmur is a private, browser-based voice memo recorder. It lets you instantly
+capture recordings, name them afterward, tag them with expressive moods, replay
+saved audio, add searchable notes, and restore backed-up snapshots on a new
+device.
 
 ## Features
 
 - Record, pause, resume, and save voice memos with the MediaRecorder API
-- Require Sia storage setup before recording
-- Automatically sync recording snapshots to Sia decentralized storage
+- Require storage setup before recording
+- Automatically sync recording snapshots for restore
 - Start recording instantly from a large mic-first capture screen
 - Name recordings after capture and tag them with emoji moods
-- Auto-transcribe recordings with Whisper and generate a one-line AI summary
 - Store a local working copy in IndexedDB for fast playback
-- Search across memo titles, moods, notes, transcripts, and summaries
-- Browse memos grouped by emoji mood with relative timestamps
+- Search across memo titles, moods, and notes
+- Browse memos in compact date-grouped cards with relative timestamps
 - Edit memo details after recording
 - Replay and export individual audio files
 - Set browser notifications for daily recording reminders
@@ -37,29 +36,15 @@ npm run dev
 - `npm run lint` - run ESLint
 - `npm test` - run the Vitest suite
 
-## AI transcription
-
-Murmur is positioned as AI-first: recordings become searchable thoughts, not
-just audio files. After a memo is saved, the app sends the audio to the
-serverless `/api/transcribe` endpoint, which calls OpenAI Whisper for
-transcription and returns a one-line summary.
-
-Set `OPENAI_API_KEY` in the deployment environment before using transcription.
-Optionally set `OPENAI_SUMMARY_MODEL` to override the summary model; otherwise
-the API uses `gpt-4o-mini`.
-
 ## Recovery and privacy
 
-Murmur requires Sia storage setup before the recorder is available. Recordings
+Murmur requires storage setup before the recorder is available. Recordings
 keep a local IndexedDB working copy for playback, and each create/edit/delete
-operation uploads a pinned Sia backup snapshot so the library can be restored on
-a replacement device.
+operation updates a backup snapshot so the library can be restored on a
+replacement device.
 
-Sia storage uses the `@siafoundation/sia-storage` SDK and the Sia indexer
-approval flow. Murmur uploads its backup JSON as a pinned Sia object and stores
-the Sia app key in the current browser for reconnects. Users must save the
-recovery phrase shown during setup; without it, a replacement device cannot
-recover the same Sia app key.
+Users must save the recovery phrase shown during setup; without it, a
+replacement device cannot recover the same storage identity.
 
 The app lock protects casual access to Murmur in the current browser with a
 passcode and, where supported, the device's platform biometric prompt. A future
