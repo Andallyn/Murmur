@@ -179,23 +179,21 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    if (!hasStoredSiaConnection()) {
-      setIsSiaReady(true);
-      return () => {
-        isMounted = false;
-      };
-    }
+    const initializeSia = async () => {
+      if (!hasStoredSiaConnection()) {
+        return;
+      }
 
-    reconnectSia()
-      .then(() => {
+      try {
+        await reconnectSia();
+
         if (!isMounted) {
-          return [];
+          return;
         }
 
         setIsSiaConnected(true);
-        return listSiaBackups();
-      })
-      .then((records) => {
+        const records = await listSiaBackups();
+
         if (!isMounted) {
           return;
         }
@@ -203,12 +201,14 @@ export default function App() {
         if (records[0]) {
           setLatestSiaBackup(records[0]);
         }
-      })
-      .catch(() => {
+      } catch {
         if (isMounted) {
           setSiaStatus('Reconnect to Sia to use Murmur storage.');
         }
-      })
+      }
+    };
+
+    void initializeSia()
       .finally(() => {
         if (isMounted) {
           setIsSiaReady(true);
