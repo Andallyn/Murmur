@@ -9,12 +9,27 @@ import {
   sortMemosByNewest,
 } from './memoUtils';
 import {
+  createBackupFile,
+  createBackupFileName,
+  readBackupFile,
+} from './backup';
+import {
   deleteMemo,
   getAllMemos,
   saveMemo,
   updateMemo,
 } from './memoStore';
 import Logo from './Logo';
+import {
+  clearBiometric,
+  clearPasscode,
+  getPrivacyStatus,
+  registerBiometric,
+  setPasscode,
+  verifyBiometric,
+  verifyPasscode,
+  type PrivacyStatus,
+} from './privacy';
 import type { DraftMemo, VoiceMemo } from './types';
 import './styles.css';
 
@@ -84,11 +99,24 @@ export default function App() {
   const [recordingMs, setRecordingMs] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [backupStatus, setBackupStatus] = useState('');
+  const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>({
+    passcodeEnabled: false,
+    biometricEnabled: false,
+    biometricAvailable: false,
+  });
+  const [isPrivacyReady, setIsPrivacyReady] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [unlockPasscode, setUnlockPasscode] = useState('');
+  const [setupPasscodeValue, setSetupPasscodeValue] = useState('');
+  const [setupPasscodeConfirm, setSetupPasscodeConfirm] = useState('');
+  const [privacyMessage, setPrivacyMessage] = useState('');
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
+  const backupInputRef = useRef<HTMLInputElement | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
   const elapsedBeforeCurrentRunRef = useRef(0);
   const finalDurationRef = useRef(0);
@@ -122,6 +150,34 @@ export default function App() {
         window.clearInterval(timerRef.current);
       }
       stopStream(streamRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getPrivacyStatus()
+      .then((status) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setPrivacyStatus(status);
+        setIsLocked(status.passcodeEnabled || status.biometricEnabled);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setPrivacyMessage('Privacy settings could not be loaded.');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsPrivacyReady(true);
+        }
+      });
+
+    return () => {
+      isMounted = false;
     };
   }, []);
 
@@ -401,6 +457,211 @@ export default function App() {
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const exportBackup = async () => {
+    if (!memos.length) {
+      setBackupStatus('Record a memo before creating a backup.');
+      return;
+    }
+
+    try {
+      const backup = await createBackupFile(memos);
+      downloadBlob(backup, createBackupFileName());
+      setBackupStatus(
+        `Backup created with ${memos.length} ${
+          memos.length === 1 ? 'memo' : 'memos'
+        }. Store it somewhere safe, like cloud storage.`,
+      );
+    } catch {
+      setBackupStatus('Unable to create a backup file.');
+    }
+  };
+
+  const importBackup = async (file: File | undefined) => {
+    if (!file) {
+      return;
+    }
+
+    try {
+      const backupMemos = await readBackupFile(file);
+      await Promise.all(backupMemos.map((memo) => saveMemo(memo)));
+
+      const loadedMemos = await getAllMemos();
+      setMemos(loadedMemos);
+      setDrafts(createDrafts(loadedMemos));
+      setBackupStatus(
+        `Restored ${backupMemos.length} ${
+          backupMemos.length === 1 ? 'memo' : 'memos'
+        } from backup.`,
+      );
+      setError('');
+    } catch {
+      setBackupStatus('Unable to restore this backup file.');
+    } finally {
+      if (backupInputRef.current) {
+        backupInputRef.current.value = '';
+      }
+    }
+  };
+
+  const refreshPrivacyStatus = async () => {
+    setPrivacyStatus(await getPrivacyStatus());
+  };
+
+  const savePasscode = async () => {
+    if (setupPasscodeValue !== setupPasscodeConfirm) {
+      setPrivacyMessage('Passcodes do not match.');
+      return;
+    }
+
+    try {
+      await setPasscode(setupPasscodeValue);
+      setSetupPasscodeValue('');
+      setSetupPasscodeConfirm('');
+      await refreshPrivacyStatus();
+      setPrivacyMessage('Passcode lock is enabled.');
+    } catch (privacyError) {
+      setPrivacyMessage(
+        privacyError instanceof Error
+          ? privacyError.message
+          : 'Unable to save this passcode.',
+      );
+    }
+  };
+
+  const unlockWithPasscode = async () => {
+    if (!(await verifyPasscode(unlockPasscode))) {
+      setPrivacyMessage('Incorrect passcode.');
+      return;
+    }
+
+    setUnlockPasscode('');
+    setPrivacyMessage('');
+    setIsLocked(false);
+  };
+
+  const unlockWithBiometric = async () => {
+    try {
+      if (!(await verifyBiometric())) {
+        setPrivacyMessage('Biometric unlock was canceled.');
+        return;
+      }
+
+      setPrivacyMessage('');
+      setIsLocked(false);
+    } catch {
+      setPrivacyMessage('Biometric unlock failed.');
+    }
+  };
+
+  const enableBiometric = async () => {
+    try {
+      await registerBiometric();
+      await refreshPrivacyStatus();
+      setPrivacyMessage('Biometric unlock is enabled on this device.');
+    } catch (privacyError) {
+      setPrivacyMessage(
+        privacyError instanceof Error
+          ? privacyError.message
+          : 'Unable to enable biometric unlock.',
+      );
+    }
+  };
+
+  const disablePrivacy = async () => {
+    const shouldDisable = window.confirm(
+      'Disable passcode and biometric unlock for this browser?',
+    );
+
+    if (!shouldDisable) {
+      return;
+    }
+
+    clearPasscode();
+    clearBiometric();
+    await refreshPrivacyStatus();
+    setIsLocked(false);
+    setPrivacyMessage('Privacy lock is disabled.');
+  };
+
+  const canLockApp =
+    privacyStatus.passcodeEnabled || privacyStatus.biometricEnabled;
+
+  if (!isPrivacyReady) {
+    return (
+      <main className="lock-screen">
+        <section className="lock-card">
+          <Logo />
+          <p className="eyebrow">Murmur privacy</p>
+          <h1>Loading</h1>
+          <p>Checking this browser&apos;s privacy settings...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (isLocked) {
+    return (
+      <main className="lock-screen">
+        <section className="lock-card">
+          <Logo />
+          <p className="eyebrow">Murmur privacy</p>
+          <h1>Locked</h1>
+          <p>
+            Unlock with your passcode or this device&apos;s biometric prompt to
+            view local recordings.
+          </p>
+          {privacyStatus.passcodeEnabled ? (
+            <form
+              className="lock-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void unlockWithPasscode();
+              }}
+            >
+              <label>
+                <span>Passcode</span>
+                <input
+                  autoComplete="current-password"
+                  type="password"
+                  value={unlockPasscode}
+                  onChange={(event) => setUnlockPasscode(event.target.value)}
+                />
+              </label>
+              <button className="primary-button" type="submit">
+                Unlock
+              </button>
+            </form>
+          ) : null}
+          {privacyStatus.biometricEnabled ? (
+            <button
+              className="secondary-button"
+              onClick={() => void unlockWithBiometric()}
+            >
+              Use fingerprint / biometrics
+            </button>
+          ) : null}
+          {privacyMessage ? (
+            <p className="utility-status" role="alert">
+              {privacyMessage}
+            </p>
+          ) : null}
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <section className="hero">
@@ -487,6 +748,127 @@ export default function App() {
           {error}
         </div>
       ) : null}
+
+      <section className="utility-grid" aria-label="Recovery and privacy">
+        <article className="utility-card">
+          <div className="section-heading">
+            <p className="eyebrow">Recovery</p>
+            <h2>Backup & restore</h2>
+            <p className="panel-copy">
+              Murmur saves recordings on this device. To recover after theft or
+              a broken phone, export a backup and store it somewhere safe before
+              anything happens.
+            </p>
+          </div>
+          <div className="utility-actions">
+            <button
+              className="secondary-button"
+              onClick={() => void exportBackup()}
+            >
+              Export backup
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => backupInputRef.current?.click()}
+            >
+              Restore backup
+            </button>
+            <input
+              ref={backupInputRef}
+              className="file-input"
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => void importBackup(event.target.files?.[0])}
+            />
+          </div>
+          {backupStatus ? (
+            <p className="utility-status" role="status">
+              {backupStatus}
+            </p>
+          ) : null}
+        </article>
+
+        <article className="utility-card">
+          <div className="section-heading">
+            <p className="eyebrow">Privacy</p>
+            <h2>App lock</h2>
+            <p className="panel-copy">
+              Add a passcode and optional device biometrics to keep casual
+              access out of Murmur on this browser.
+            </p>
+          </div>
+          <div className="privacy-status-list">
+            <span>
+              Passcode:{' '}
+              {privacyStatus.passcodeEnabled ? 'Enabled' : 'Not enabled'}
+            </span>
+            <span>
+              Biometrics:{' '}
+              {privacyStatus.biometricEnabled
+                ? 'Enabled'
+                : privacyStatus.biometricAvailable
+                  ? 'Available'
+                  : 'Unavailable'}
+            </span>
+          </div>
+          <div className="passcode-grid">
+            <label>
+              <span>New passcode</span>
+              <input
+                autoComplete="new-password"
+                type="password"
+                value={setupPasscodeValue}
+                onChange={(event) => setSetupPasscodeValue(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Confirm passcode</span>
+              <input
+                autoComplete="new-password"
+                type="password"
+                value={setupPasscodeConfirm}
+                onChange={(event) =>
+                  setSetupPasscodeConfirm(event.target.value)
+                }
+              />
+            </label>
+          </div>
+          <div className="utility-actions">
+            <button
+              className="secondary-button"
+              onClick={() => void savePasscode()}
+            >
+              Save passcode
+            </button>
+            <button
+              className="secondary-button"
+              disabled={!privacyStatus.biometricAvailable}
+              onClick={() => void enableBiometric()}
+            >
+              Enable fingerprint / biometrics
+            </button>
+            <button
+              className="secondary-button"
+              disabled={!canLockApp}
+              onClick={() => setIsLocked(true)}
+            >
+              Lock now
+            </button>
+            <button
+              className="text-danger-button"
+              disabled={!canLockApp}
+              onClick={() => void disablePrivacy()}
+            >
+              Disable lock
+            </button>
+          </div>
+          {privacyMessage ? (
+            <p className="utility-status" role="status">
+              {privacyMessage}
+            </p>
+          ) : null}
+        </article>
+      </section>
 
       <section className="memo-toolbar" aria-label="Memo search">
         <div className="section-heading">

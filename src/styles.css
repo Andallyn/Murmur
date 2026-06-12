@@ -38,6 +38,11 @@ body::before {
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 78%);
 }
 
+body:has(.lock-screen) {
+  display: grid;
+  place-items: center;
+}
+
 button,
 input,
 textarea {
@@ -68,10 +73,46 @@ button:disabled {
   padding: 36px 0 52px;
 }
 
+.lock-screen {
+  display: grid;
+  width: min(100%, 560px);
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.lock-card {
+  width: 100%;
+  padding: clamp(28px, 6vw, 48px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 36px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(236, 72, 153, 0.22), transparent 34%),
+    rgba(13, 9, 24, 0.84);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(18px);
+}
+
+.lock-card h1 {
+  margin-top: 18px;
+  font-size: clamp(3rem, 13vw, 6.5rem);
+}
+
+.lock-card p {
+  color: #d8c7e8;
+}
+
+.lock-form {
+  display: grid;
+  gap: 14px;
+  margin: 22px 0 12px;
+}
+
 .hero,
 .recorder-panel,
 .memo-toolbar,
 .memo-card,
+.utility-card,
 .error-banner,
 .empty-state {
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -328,6 +369,7 @@ h2 {
 .recorder-panel,
 .memo-toolbar,
 .memo-card,
+.utility-card,
 .error-banner,
 .empty-state {
   border-radius: 30px;
@@ -446,6 +488,55 @@ h2 {
   padding: 16px 18px;
   background: rgba(127, 29, 29, 0.7);
   color: #fecdd3;
+}
+
+.utility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.utility-card {
+  display: grid;
+  gap: 20px;
+  padding: 24px 28px;
+}
+
+.utility-actions,
+.privacy-status-list,
+.passcode-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.privacy-status-list span {
+  padding: 8px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #d8c7e8;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.passcode-grid {
+  align-items: start;
+}
+
+.passcode-grid label {
+  flex: 1 1 220px;
+}
+
+.utility-status {
+  margin: 0;
+  color: #fbcfe8;
+}
+
+.file-input {
+  display: none;
 }
 
 .memo-toolbar {
