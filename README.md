@@ -56,9 +56,11 @@ restore without a user-managed recovery phrase.
 
 Murmur can request browser notification permission from Settings. When enabled,
 daily recording reminders are scheduled while the app is available in the
-browser. If a recording is active or paused and the user backgrounds or closes
-the page before saving, Murmur sends an unfinished-recording reminder and asks
-the browser to confirm before leaving.
+browser. Reminder notifications rotate suggested series ideas such as daily
+affirmations, to-do lists, gratitude logs, idea journals, mood check-ins, meeting
+recaps, and voice diaries. If a recording is active or paused and the user
+backgrounds or closes the page before saving, Murmur sends an
+unfinished-recording reminder and asks the browser to confirm before leaving.
 
 Browser notifications depend on the user's permission and platform behavior;
 fully reliable closed-app reminders would require a push notification service.

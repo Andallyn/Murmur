@@ -62,6 +62,37 @@ const defaultReminderSettings: ReminderSettings = {
   dailyTime: '09:00',
 };
 
+const reminderSeriesIdeas = [
+  {
+    series: 'Daily affirmations',
+    prompt: 'Record one affirmation you want to carry today.',
+  },
+  {
+    series: 'To-do list',
+    prompt: 'Talk through your top priorities before the day gets busy.',
+  },
+  {
+    series: 'Gratitude log',
+    prompt: 'Save one thing you are grateful for right now.',
+  },
+  {
+    series: 'Idea journal',
+    prompt: 'Capture a rough idea before it disappears.',
+  },
+  {
+    series: 'Mood check-in',
+    prompt: 'Name how you feel and what you need next.',
+  },
+  {
+    series: 'Meeting recap',
+    prompt: 'Summarize decisions, blockers, and follow-ups.',
+  },
+  {
+    series: 'Voice diary',
+    prompt: 'Leave a short note for your future self.',
+  },
+];
+
 const preferredMimeTypes = [
   'audio/webm;codecs=opus',
   'audio/webm',
@@ -160,6 +191,15 @@ function showBrowserNotification(title: string, body: string): boolean {
   });
 
   return true;
+}
+
+function getReminderSeriesIdea(date = new Date()) {
+  const startOfYear = new Date(date.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor(
+    (date.getTime() - startOfYear.getTime()) / 86_400_000,
+  );
+
+  return reminderSeriesIdeas[dayOfYear % reminderSeriesIdeas.length];
 }
 
 function MemoAudio({ memo }: { memo: VoiceMemo }) {
@@ -351,9 +391,11 @@ export default function App() {
           return;
         }
 
+        const idea = getReminderSeriesIdea();
+
         showBrowserNotification(
           'Time to record in Murmur',
-          'Capture a quick thought, update a series, or start a new memo.',
+          `${idea.series}: ${idea.prompt}`,
         );
         setReminderStatus('Daily reminder sent.');
         scheduleReminder();
@@ -1020,9 +1062,10 @@ export default function App() {
       }
     }
 
+    const idea = getReminderSeriesIdea();
     const didNotify = showBrowserNotification(
       'Murmur reminder test',
-      'Notifications are ready for daily recording reminders.',
+      `${idea.series}: ${idea.prompt}`,
     );
 
     setReminderStatus(
@@ -1354,6 +1397,10 @@ export default function App() {
                   <p className="panel-copy">
                     Get a daily nudge to record. Murmur also warns you if you
                     leave with an unsaved recording in progress.
+                  </p>
+                  <p className="panel-copy">
+                    Suggestions rotate through series like Daily affirmations,
+                    To-do list, Gratitude log, Idea journal, and Voice diary.
                   </p>
                 </div>
                 <label className="toggle-row">
