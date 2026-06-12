@@ -65,14 +65,11 @@ function stopStream(stream: MediaStream | null): void {
 }
 
 function MemoAudio({ memo }: { memo: VoiceMemo }) {
-  const [source, setSource] = useState('');
+  const source = useMemo(() => URL.createObjectURL(memo.blob), [memo.blob]);
 
   useEffect(() => {
-    const url = URL.createObjectURL(memo.blob);
-    setSource(url);
-
-    return () => URL.revokeObjectURL(url);
-  }, [memo.blob]);
+    return () => URL.revokeObjectURL(source);
+  }, [source]);
 
   return <audio controls preload="metadata" src={source} />;
 }
