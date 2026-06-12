@@ -643,6 +643,36 @@ h2 {
   flex: 1 1 220px;
 }
 
+.reminder-settings {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.reminder-settings h3 {
+  margin: 0;
+  color: #fff7ed;
+  font-size: 1.15rem;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.toggle-row input {
+  width: auto;
+  accent-color: #ec4899;
+}
+
+.toggle-row span {
+  margin: 0;
+}
+
 .sia-panel {
   align-items: stretch;
   padding: 16px;

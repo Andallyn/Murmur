@@ -46,9 +46,21 @@ import './styles.css';
 const TIMER_INTERVAL_MS = 250;
 const RECORDING_TIMESLICE_MS = 1_000;
 const WELCOME_DISMISSED_KEY = 'murmur.welcomeDismissedDate.v1';
+const REMINDER_SETTINGS_KEY = 'murmur.reminders.v1';
+const INCOMPLETE_REMINDER_COOLDOWN_MS = 5 * 60 * 1_000;
 
 type RecordingState = 'idle' | 'recording' | 'paused';
 type MenuPanel = 'settings' | 'storage' | 'privacy' | null;
+
+interface ReminderSettings {
+  dailyEnabled: boolean;
+  dailyTime: string;
+}
+
+const defaultReminderSettings: ReminderSettings = {
+  dailyEnabled: false,
+  dailyTime: '09:00',
+};
 
 const preferredMimeTypes = [
   'audio/webm;codecs=opus',
@@ -93,6 +105,63 @@ function stopStream(stream: MediaStream | null): void {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
+function getStoredReminderSettings(): ReminderSettings {
+  const storedSettings = localStorage.getItem(REMINDER_SETTINGS_KEY);
+
+  if (!storedSettings) {
+    return defaultReminderSettings;
+  }
+
+  try {
+    return {
+      ...defaultReminderSettings,
+      ...(JSON.parse(storedSettings) as Partial<ReminderSettings>),
+    };
+  } catch {
+    return defaultReminderSettings;
+  }
+}
+
+function saveReminderSettings(settings: ReminderSettings): void {
+  localStorage.setItem(REMINDER_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function getNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (!('Notification' in window)) {
+    return 'unsupported';
+  }
+
+  return Notification.permission;
+}
+
+function getDelayUntilReminder(time: string): number {
+  const [hour = '9', minute = '0'] = time.split(':');
+  const now = new Date();
+  const nextReminder = new Date();
+
+  nextReminder.setHours(Number(hour), Number(minute), 0, 0);
+
+  if (nextReminder <= now) {
+    nextReminder.setDate(nextReminder.getDate() + 1);
+  }
+
+  return nextReminder.getTime() - now.getTime();
+}
+
+function showBrowserNotification(title: string, body: string): boolean {
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    return false;
+  }
+
+  new Notification(title, {
+    body,
+    icon: '/murmur-mark.svg',
+    badge: '/murmur-mark.svg',
+  });
+
+  return true;
+}
+
 function MemoAudio({ memo }: { memo: VoiceMemo }) {
   const source = useMemo(() => URL.createObjectURL(memo.blob), [memo.blob]);
 
@@ -121,6 +190,13 @@ export default function App() {
       localStorage.getItem(WELCOME_DISMISSED_KEY) !==
       new Date().toDateString(),
   );
+  const [reminderSettings, setReminderSettings] = useState(
+    getStoredReminderSettings,
+  );
+  const [notificationPermission, setNotificationPermission] = useState(
+    getNotificationPermission,
+  );
+  const [reminderStatus, setReminderStatus] = useState('');
   const [backupStatus, setBackupStatus] = useState('');
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>({
     passcodeEnabled: false,
@@ -149,6 +225,7 @@ export default function App() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const backupInputRef = useRef<HTMLInputElement | null>(null);
+  const incompleteReminderSentAtRef = useRef(0);
   const recordingStartedAtRef = useRef<number | null>(null);
   const elapsedBeforeCurrentRunRef = useRef(0);
   const finalDurationRef = useRef(0);
@@ -256,6 +333,95 @@ export default function App() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      !reminderSettings.dailyEnabled ||
+      notificationPermission !== 'granted'
+    ) {
+      return;
+    }
+
+    let isActive = true;
+    let timeoutId: number | null = null;
+
+    const scheduleReminder = () => {
+      timeoutId = window.setTimeout(() => {
+        if (!isActive) {
+          return;
+        }
+
+        showBrowserNotification(
+          'Time to record in Murmur',
+          'Capture a quick thought, update a series, or start a new memo.',
+        );
+        setReminderStatus('Daily reminder sent.');
+        scheduleReminder();
+      }, getDelayUntilReminder(reminderSettings.dailyTime));
+    };
+
+    scheduleReminder();
+
+    return () => {
+      isActive = false;
+
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [
+    reminderSettings.dailyEnabled,
+    reminderSettings.dailyTime,
+    notificationPermission,
+  ]);
+
+  useEffect(() => {
+    if (recordingState === 'idle') {
+      return;
+    }
+
+    const notifyIncompleteRecording = () => {
+      const now = Date.now();
+
+      if (
+        now - incompleteReminderSentAtRef.current <
+        INCOMPLETE_REMINDER_COOLDOWN_MS
+      ) {
+        return;
+      }
+
+      incompleteReminderSentAtRef.current = now;
+
+      const didNotify = showBrowserNotification(
+        'Finish your Murmur recording',
+        'You have a recording in progress. Return to save it before leaving.',
+      );
+
+      if (didNotify) {
+        setReminderStatus('Sent an unfinished recording reminder.');
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        notifyIncompleteRecording();
+      }
+    };
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      notifyIncompleteRecording();
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [recordingState]);
 
   const filteredMemos = useMemo(
     () => memos.filter((memo) => matchesMemo(memo, query)),
@@ -789,6 +955,83 @@ export default function App() {
   const canLockApp =
     privacyStatus.passcodeEnabled || privacyStatus.biometricEnabled;
 
+  const requestReminderPermission = async () => {
+    if (!('Notification' in window)) {
+      setReminderStatus('This browser does not support notifications.');
+      setNotificationPermission('unsupported');
+      return false;
+    }
+
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+
+    if (permission !== 'granted') {
+      setReminderStatus('Notifications are blocked for Murmur.');
+      return false;
+    }
+
+    setReminderStatus('Notifications are enabled.');
+    return true;
+  };
+
+  const updateDailyReminder = async (dailyEnabled: boolean) => {
+    if (dailyEnabled && notificationPermission !== 'granted') {
+      const didGrantPermission = await requestReminderPermission();
+
+      if (!didGrantPermission) {
+        return;
+      }
+    }
+
+    const nextSettings = {
+      ...reminderSettings,
+      dailyEnabled,
+    };
+
+    saveReminderSettings(nextSettings);
+    setReminderSettings(nextSettings);
+    setReminderStatus(
+      dailyEnabled
+        ? `Daily reminders set for ${nextSettings.dailyTime}.`
+        : 'Daily reminders are off.',
+    );
+  };
+
+  const updateReminderTime = (dailyTime: string) => {
+    const nextSettings = {
+      ...reminderSettings,
+      dailyTime,
+    };
+
+    saveReminderSettings(nextSettings);
+    setReminderSettings(nextSettings);
+
+    if (nextSettings.dailyEnabled) {
+      setReminderStatus(`Daily reminders set for ${dailyTime}.`);
+    }
+  };
+
+  const sendTestReminder = async () => {
+    if (notificationPermission !== 'granted') {
+      const didGrantPermission = await requestReminderPermission();
+
+      if (!didGrantPermission) {
+        return;
+      }
+    }
+
+    const didNotify = showBrowserNotification(
+      'Murmur reminder test',
+      'Notifications are ready for daily recording reminders.',
+    );
+
+    setReminderStatus(
+      didNotify
+        ? 'Test notification sent.'
+        : 'Notifications are not available right now.',
+    );
+  };
+
   const dismissWelcome = () => {
     localStorage.setItem(WELCOME_DISMISSED_KEY, new Date().toDateString());
     setShowWelcome(false);
@@ -1104,6 +1347,57 @@ export default function App() {
                 >
                   Lock app
                 </button>
+              </div>
+              <div className="reminder-settings">
+                <div className="section-heading">
+                  <h3>Recording reminders</h3>
+                  <p className="panel-copy">
+                    Get a daily nudge to record. Murmur also warns you if you
+                    leave with an unsaved recording in progress.
+                  </p>
+                </div>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={reminderSettings.dailyEnabled}
+                    onChange={(event) =>
+                      void updateDailyReminder(event.target.checked)
+                    }
+                  />
+                  <span>Daily recording reminder</span>
+                </label>
+                <label>
+                  <span>Reminder time</span>
+                  <input
+                    type="time"
+                    value={reminderSettings.dailyTime}
+                    onChange={(event) =>
+                      updateReminderTime(event.target.value)
+                    }
+                  />
+                </label>
+                <div className="utility-actions">
+                  <button
+                    className="secondary-button"
+                    onClick={() => void requestReminderPermission()}
+                  >
+                    Enable notifications
+                  </button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => void sendTestReminder()}
+                  >
+                    Send test
+                  </button>
+                </div>
+                <div className="privacy-status-list">
+                  <span>Permission: {notificationPermission}</span>
+                </div>
+                {reminderStatus ? (
+                  <p className="utility-status" role="status">
+                    {reminderStatus}
+                  </p>
+                ) : null}
               </div>
               {siaStatus ? (
                 <p className="utility-status" role="status">

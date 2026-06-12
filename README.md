@@ -15,6 +15,8 @@ new device.
 - Search across memo titles, series, and notes
 - Edit memo details after recording
 - Replay and export individual audio files
+- Set browser notifications for daily recording reminders
+- Warn users when leaving with an unsaved recording in progress
 - Export and restore a Murmur backup file for device replacement
 - Add a local app lock with passcode and supported device biometrics
 
@@ -49,3 +51,14 @@ The app lock protects casual access to Murmur in the current browser with a
 passcode and, where supported, the device's platform biometric prompt. A future
 account/cloud sync backend would be required for fully automatic cross-device
 restore without a user-managed recovery phrase.
+
+## Reminders
+
+Murmur can request browser notification permission from Settings. When enabled,
+daily recording reminders are scheduled while the app is available in the
+browser. If a recording is active or paused and the user backgrounds or closes
+the page before saving, Murmur sends an unfinished-recording reminder and asks
+the browser to confirm before leaving.
+
+Browser notifications depend on the user's permission and platform behavior;
+fully reliable closed-app reminders would require a push notification service.
