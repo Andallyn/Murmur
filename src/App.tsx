@@ -14,6 +14,7 @@ import {
   saveMemo,
   updateMemo,
 } from './memoStore';
+import Logo from './Logo';
 import type { DraftMemo, VoiceMemo } from './types';
 import './styles.css';
 
@@ -403,25 +404,48 @@ export default function App() {
   return (
     <main className="app-shell">
       <section className="hero">
-        <div>
-          <p className="eyebrow">Private voice notes</p>
-          <h1>Murmur</h1>
+        <div className="hero-content">
+          <div className="brand-lockup">
+            <Logo />
+            <div>
+              <p className="eyebrow">Private voice notes</p>
+              <h1>Murmur</h1>
+            </div>
+          </div>
           <p className="hero-copy">
             Capture quick thoughts, meeting takeaways, and reminders. Memos
             stay in this browser and can be replayed or exported anytime.
           </p>
+          <div className="hero-badges" aria-label="Murmur highlights">
+            <span>Local-first</span>
+            <span>No account</span>
+            <span>Export-ready</span>
+          </div>
         </div>
-        <div className="stats-card" aria-label="Memo library stats">
-          <span>{memos.length}</span>
-          <p>{memos.length === 1 ? 'saved memo' : 'saved memos'}</p>
-          <small>{formatDuration(totalDurationMs)} total audio</small>
+        <div className="hero-visual" aria-label="Memo library stats">
+          <div className="orbital-ring" />
+          <div className="stats-card">
+            <Logo size="small" />
+            <span>{memos.length}</span>
+            <p>{memos.length === 1 ? 'saved memo' : 'saved memos'}</p>
+            <small>{formatDuration(totalDurationMs)} total audio</small>
+          </div>
+          <div className="wave-card" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
         </div>
       </section>
 
       <section className="recorder-panel" aria-labelledby="recorder-title">
-        <div>
+        <div className="section-heading">
           <p className="eyebrow">Recorder</p>
           <h2 id="recorder-title">New memo</h2>
+          <p className="panel-copy">Tap record and let the idea land.</p>
         </div>
         <div className="timer" aria-live="polite">
           {formatDuration(recordingMs)}
@@ -449,6 +473,7 @@ export default function App() {
           )}
         </div>
         <p className="status-text">
+          <span className={`status-dot status-${recordingState}`} />
           {recordingState === 'idle'
             ? 'Ready when you are.'
             : recordingState === 'paused'
@@ -464,7 +489,7 @@ export default function App() {
       ) : null}
 
       <section className="memo-toolbar" aria-label="Memo search">
-        <div>
+        <div className="section-heading">
           <p className="eyebrow">Library</p>
           <h2>Your memos</h2>
         </div>

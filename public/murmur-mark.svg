@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Murmur logo</title>
+  <defs>
+    <linearGradient id="murmur-gradient" x1="15" y1="12" x2="116" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8b5cf6"/>
+      <stop offset="0.48" stop-color="#ec4899"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#12051f" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="128" height="128" rx="34" fill="#13091f"/>
+  <path
+    d="M26 61.2C26 38.9 43.6 22 65.8 22S104 38.7 104 60.2c0 22-16.7 39.8-39.9 39.8h-9.8L35.9 112c-1.9 1.2-4.4-.6-3.8-2.8l4.6-17.5C30 84.9 26 74.4 26 61.2Z"
+    fill="url(#murmur-gradient)"
+    filter="url(#soft-shadow)"
+  />
+  <path
+    d="M47 67c0-11.8 6.8-21 17-21s17 9.2 17 21"
+    fill="none"
+    stroke="#fff7ed"
+    stroke-width="9"
+    stroke-linecap="round"
+  />
+  <path
+    d="M45 67h38M54 81h20"
+    fill="none"
+    stroke="#fff7ed"
+    stroke-width="9"
+    stroke-linecap="round"
+  />
+</svg>
