@@ -1,18 +1,19 @@
 # Murmur
 
 Murmur is a private, browser-based voice memo recorder built with Sia Foundation
-as the storage partner. It lets you name recordings, organize them into series,
-replay saved audio, add searchable notes, and restore Sia-backed snapshots on a
-new device.
+as the storage partner. It lets you instantly capture recordings, name them
+afterward, tag them with expressive moods, replay saved audio, add searchable
+notes, and restore Sia-backed snapshots on a new device.
 
 ## Features
 
 - Record, pause, resume, and save voice memos with the MediaRecorder API
 - Require Sia storage setup before recording
 - Automatically sync recording snapshots to Sia decentralized storage
-- Name recordings before capture and group them into custom series
+- Start recording instantly from a large mic-first capture screen
+- Name recordings after capture and tag them with emoji moods
 - Store a local working copy in IndexedDB for fast playback
-- Search across memo titles, series, and notes
+- Search across memo titles, moods, and notes
 - Edit memo details after recording
 - Replay and export individual audio files
 - Set browser notifications for daily recording reminders

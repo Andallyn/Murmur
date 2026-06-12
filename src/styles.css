@@ -500,11 +500,12 @@ h2 {
 
 .recorder-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 22px;
+  grid-template-columns: 1fr;
+  gap: 26px;
   align-items: center;
   margin-bottom: 20px;
-  padding: 28px;
+  padding: clamp(28px, 6vw, 56px);
+  text-align: center;
 }
 
 .section-heading {
@@ -517,41 +518,170 @@ h2 {
 }
 
 .timer {
-  justify-self: end;
-  min-width: 154px;
-  padding: 16px 22px;
+  justify-self: center;
+  min-width: 112px;
+  padding: 10px 14px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   background:
     linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.16)),
     rgba(255, 255, 255, 0.07);
   color: #fff7ed;
-  font-size: 2.15rem;
+  font-size: 1.15rem;
   font-variant-numeric: tabular-nums;
   font-weight: 900;
   text-align: center;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-.recording-fields,
 .recording-controls {
   display: flex;
   flex-wrap: wrap;
-  grid-column: 1 / -1;
   gap: 12px;
+  justify-content: center;
 }
 
-.recording-fields label {
-  flex: 1 1 240px;
+.record-hero {
+  position: relative;
+  display: grid;
+  width: min(320px, 100%);
+  min-height: 260px;
+  place-items: center;
+  justify-self: center;
+}
+
+.mic-button {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: clamp(136px, 35vw, 178px);
+  height: clamp(136px, 35vw, 178px);
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.28), transparent 28%),
+    linear-gradient(135deg, #8b5cf6, #ec4899 54%, #f97316);
+  color: #fff7ed;
+  box-shadow:
+    0 28px 90px rgba(236, 72, 153, 0.36),
+    0 0 0 14px rgba(236, 72, 153, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  font-size: 1rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mic-recording {
+  animation: mic-breathe 1.8s ease-in-out infinite;
+}
+
+.mic-paused {
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.22), transparent 28%),
+    linear-gradient(135deg, #6d28d9, #f59e0b);
+}
+
+.mic-icon {
+  display: block;
+  font-size: clamp(3rem, 11vw, 4.8rem);
+  line-height: 1;
+}
+
+.waveform-ring {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  opacity: 0.52;
+  transform: scale(0.96);
+}
+
+.waveform-ring span {
+  width: 6px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f0abfc, #fb7185 55%, #f97316);
+  box-shadow: 0 0 22px rgba(236, 72, 153, 0.42);
+  transform-origin: center;
+}
+
+.waveform-active {
+  opacity: 1;
+}
+
+.waveform-active span {
+  animation: waveform-dance 820ms ease-in-out infinite;
+}
+
+.waveform-active span:nth-child(2n) {
+  animation-delay: 90ms;
+}
+
+.waveform-active span:nth-child(3n) {
+  animation-delay: 180ms;
+}
+
+.waveform-active span:nth-child(4n) {
+  animation-delay: 270ms;
+}
+
+.recording-footer {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}
+
+@keyframes mic-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 28px 90px rgba(236, 72, 153, 0.36),
+      0 0 0 14px rgba(236, 72, 153, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26);
+    transform: scale(1);
+  }
+
+  50% {
+    box-shadow:
+      0 32px 110px rgba(236, 72, 153, 0.52),
+      0 0 0 30px rgba(236, 72, 153, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: scale(1.035);
+  }
+}
+
+@keyframes waveform-dance {
+  0%,
+  100% {
+    height: 22px;
+    transform: translateY(0);
+  }
+
+  50% {
+    height: 92px;
+    transform: translateY(-4px);
+  }
 }
 
 .status-text {
   display: flex;
-  grid-column: 1 / -1;
   gap: 10px;
   align-items: center;
+  justify-content: center;
   margin: 0;
   color: #c6b8d7;
+}
+
+.prompt-text {
+  color: #fbcfe8;
+  font-size: clamp(1.1rem, 3vw, 1.45rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
 
 .status-dot {
@@ -839,6 +969,37 @@ label span {
   font-size: 0.88rem;
 }
 
+.mood-picker > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #c6b8d7;
+  font-size: 0.83rem;
+  font-weight: 850;
+}
+
+.mood-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mood-chip {
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #f8fafc;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.mood-chip-selected {
+  border-color: rgba(251, 207, 232, 0.7);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.42), rgba(236, 72, 153, 0.36));
+  color: #fff7ed;
+  box-shadow: 0 12px 32px rgba(236, 72, 153, 0.22);
+}
+
 .duration-pill {
   padding: 8px 10px;
   border-radius: 999px;
@@ -917,7 +1078,7 @@ audio {
   }
 
   .timer {
-    justify-self: start;
+    justify-self: center;
   }
 }
 

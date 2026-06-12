@@ -93,6 +93,24 @@ const reminderSeriesIdeas = [
   },
 ];
 
+const recorderPrompts = [
+  'drop the thought 🎙️',
+  'brain dump in 3... 2...',
+  'vent, plan, or just vibe',
+  'say it before it disappears',
+  'main character monologue?',
+  'tiny thought, big energy',
+];
+
+const moodTags = [
+  '🔥 idea',
+  '😮‍💨 vent',
+  '🧠 deep thought',
+  '📋 reminder',
+  '✨ random',
+  '💭 diary',
+];
+
 const preferredMimeTypes = [
   'audio/webm;codecs=opus',
   'audio/webm',
@@ -219,8 +237,9 @@ export default function App() {
   const [recordingState, setRecordingState] =
     useState<RecordingState>('idle');
   const [recordingMs, setRecordingMs] = useState(0);
-  const [recordingTitle, setRecordingTitle] = useState('');
-  const [recordingSeries, setRecordingSeries] = useState('');
+  const [recorderPrompt] = useState(
+    () => recorderPrompts[Math.floor(Math.random() * recorderPrompts.length)],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -552,8 +571,8 @@ export default function App() {
     const createdAt = new Date();
     const memo: VoiceMemo = {
       id: crypto.randomUUID(),
-      title: normalizeTitle(recordingTitle || createDefaultTitle(createdAt)),
-      series: recordingSeries.trim(),
+      title: createDefaultTitle(createdAt),
+      series: '',
       notes: '',
       createdAt: createdAt.toISOString(),
       durationMs: finalDurationRef.current,
@@ -577,7 +596,6 @@ export default function App() {
       }));
       await syncMemosToSia(nextMemos, 'Recording saved and synced to Sia.');
       setRecordingMs(0);
-      setRecordingTitle('');
       setError('');
     } catch {
       setError('Recording finished, but it could not be saved to Sia.');
@@ -682,6 +700,15 @@ export default function App() {
     clearTimer();
     setRecordingState('idle');
     recorder.stop();
+  };
+
+  const handleMicButtonClick = () => {
+    if (recordingState === 'idle') {
+      void startRecording();
+      return;
+    }
+
+    stopRecording();
   };
 
   const updateDraft = (
@@ -1259,9 +1286,9 @@ export default function App() {
         <section className="welcome-card" aria-label="Welcome message">
           <div>
             <p className="eyebrow">Welcome back</p>
-            <h2>What would you like to record today?</h2>
+            <h2>Tap the mic. Catch the chaos.</h2>
             <p className="panel-copy">
-              Add a name, choose a series if you want one, then start recording.
+              Name it and mood-tag it after. Just capture the thought first.
             </p>
           </div>
           <button className="secondary-button" onClick={dismissWelcome}>
@@ -1273,39 +1300,49 @@ export default function App() {
       <section className="recorder-panel" aria-labelledby="recorder-title">
         <div className="section-heading">
           <p className="eyebrow">Recorder</p>
-          <h2 id="recorder-title">New memo</h2>
+          <h2 id="recorder-title">Instant capture</h2>
           <p className="panel-copy">
-            Name the recording, group it into a series, then let the idea land.
+            No forms. No setup. Just tap and talk.
           </p>
         </div>
-        <div className="timer" aria-live="polite">
-          {formatDuration(recordingMs)}
+        <div className="record-hero">
+          <div
+            className={`waveform-ring ${
+              recordingState === 'recording' ? 'waveform-active' : ''
+            }`}
+            aria-hidden="true"
+          >
+            {Array.from({ length: 18 }).map((_, index) => (
+              <span key={index} />
+            ))}
+          </div>
+          <button
+            className={`mic-button mic-${recordingState}`}
+            aria-label={
+              recordingState === 'idle'
+                ? 'Start recording'
+                : 'Save recording'
+            }
+            onClick={handleMicButtonClick}
+          >
+            <span className="mic-icon" aria-hidden="true">
+              🎙️
+            </span>
+            <span>
+              {recordingState === 'idle'
+                ? 'record'
+                : recordingState === 'paused'
+                  ? 'save'
+                  : 'save'}
+            </span>
+          </button>
         </div>
-        <div className="recording-fields">
-          <label>
-            <span>Recording name</span>
-            <input
-              placeholder="e.g. Morning reflection"
-              value={recordingTitle}
-              onChange={(event) => setRecordingTitle(event.target.value)}
-            />
-          </label>
-          <label>
-            <span>Series</span>
-            <input
-              placeholder="e.g. Founder diary"
-              value={recordingSeries}
-              onChange={(event) => setRecordingSeries(event.target.value)}
-            />
-          </label>
-        </div>
-        <div className="recording-controls">
-          {recordingState === 'idle' ? (
-            <button className="primary-button" onClick={startRecording}>
-              Start recording
-            </button>
-          ) : (
-            <>
+        <div className="recording-footer">
+          <div className="timer" aria-live="polite">
+            {formatDuration(recordingMs)}
+          </div>
+          {recordingState !== 'idle' ? (
+            <div className="recording-controls">
               {recordingState === 'recording' ? (
                 <button className="secondary-button" onClick={pauseRecording}>
                   Pause
@@ -1315,19 +1352,16 @@ export default function App() {
                   Resume
                 </button>
               )}
-              <button className="danger-button" onClick={stopRecording}>
-                Save recording
-              </button>
-            </>
-          )}
+            </div>
+          ) : null}
         </div>
-        <p className="status-text">
+        <p className="status-text prompt-text">
           <span className={`status-dot status-${recordingState}`} />
           {recordingState === 'idle'
-            ? 'Ready when you are.'
+            ? recorderPrompt
             : recordingState === 'paused'
-              ? 'Paused. Resume to keep recording.'
-              : 'Recording from your microphone...'}
+              ? 'paused. save it or keep spilling.'
+              : 'live. let it out.'}
         </p>
       </section>
 
@@ -1408,7 +1442,7 @@ export default function App() {
                     leave with an unsaved recording in progress.
                   </p>
                   <p className="panel-copy">
-                    Suggestions rotate through series like Daily affirmations,
+                    Suggestions rotate through ideas like Daily affirmations,
                     To-do list, Gratitude log, Idea journal, and Voice diary.
                   </p>
                 </div>
@@ -1625,7 +1659,7 @@ export default function App() {
           <span className="sr-only">Search memos</span>
           <input
             type="search"
-            placeholder="Search titles or notes"
+            placeholder="Search titles, moods, or notes"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -1669,16 +1703,29 @@ export default function App() {
                   </span>
                 </div>
 
-                <label>
-                  <span>Series</span>
-                  <input
-                    placeholder="Add this recording to a series"
-                    value={draft.series}
-                    onChange={(event) =>
-                      updateDraft(memo.id, 'series', event.target.value)
-                    }
-                  />
-                </label>
+                <div className="mood-picker">
+                  <span>Mood tag</span>
+                  <div className="mood-chip-row" role="list">
+                    {moodTags.map((mood) => (
+                      <button
+                        className={`mood-chip ${
+                          draft.series === mood ? 'mood-chip-selected' : ''
+                        }`}
+                        key={mood}
+                        type="button"
+                        onClick={() =>
+                          updateDraft(
+                            memo.id,
+                            'series',
+                            draft.series === mood ? '' : mood,
+                          )
+                        }
+                      >
+                        {mood}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <MemoAudio memo={memo} />
 
