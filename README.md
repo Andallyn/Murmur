@@ -12,6 +12,7 @@ recordings from the browser.
 - Edit memo details after recording
 - Replay and export individual audio files
 - Export and restore a Murmur backup file for device replacement
+- Pin encrypted backup snapshots to Sia decentralized storage
 - Add a local app lock with passcode and supported device biometrics
 
 ## Getting started
@@ -32,9 +33,16 @@ npm run dev
 
 Murmur is local-first: recordings live in the browser on the device where they
 were captured. If that phone or computer is lost, stolen, or broken, recordings
-can only be restored if the user previously exported a Murmur backup and saved
-it somewhere safe, such as cloud storage.
+can only be restored if the user previously exported a Murmur backup or uploaded
+a backup snapshot to Sia.
+
+Sia cloud backup uses the `@siafoundation/sia-storage` SDK and the Sia indexer
+approval flow. Murmur uploads its backup JSON as a pinned Sia object and stores
+the Sia app key in the current browser for reconnects. Users must save the Sia
+recovery phrase shown during setup; without it, a replacement device cannot
+recover the same Sia app key.
 
 The app lock protects casual access to Murmur in the current browser with a
 passcode and, where supported, the device's platform biometric prompt. A future
-account/cloud sync backend would be required for automatic cross-device restore.
+account/cloud sync backend would be required for fully automatic cross-device
+restore without a user-managed recovery phrase.

@@ -30,6 +30,17 @@ import {
   verifyPasscode,
   type PrivacyStatus,
 } from './privacy';
+import {
+  clearSiaConnection,
+  connectSia,
+  downloadSiaBackup,
+  getStoredSiaBackup,
+  hasStoredSiaConnection,
+  listSiaBackups,
+  reconnectSia,
+  uploadSiaBackup,
+  type SiaBackupRecord,
+} from './siaStorage';
 import type { DraftMemo, VoiceMemo } from './types';
 import './styles.css';
 
@@ -111,6 +122,14 @@ export default function App() {
   const [setupPasscodeValue, setSetupPasscodeValue] = useState('');
   const [setupPasscodeConfirm, setSetupPasscodeConfirm] = useState('');
   const [privacyMessage, setPrivacyMessage] = useState('');
+  const [isSiaConnected, setIsSiaConnected] = useState(false);
+  const [isSiaBusy, setIsSiaBusy] = useState(false);
+  const [siaStatus, setSiaStatus] = useState('');
+  const [siaApprovalUrl, setSiaApprovalUrl] = useState('');
+  const [siaRecoveryPhrase, setSiaRecoveryPhrase] = useState('');
+  const [siaRecoveryPhraseToUse, setSiaRecoveryPhraseToUse] = useState('');
+  const [latestSiaBackup, setLatestSiaBackup] =
+    useState<SiaBackupRecord | null>(() => getStoredSiaBackup());
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -151,6 +170,26 @@ export default function App() {
       }
       stopStream(streamRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!hasStoredSiaConnection()) {
+      return;
+    }
+
+    reconnectSia()
+      .then(() => {
+        setIsSiaConnected(true);
+        return listSiaBackups();
+      })
+      .then((records) => {
+        if (records[0]) {
+          setLatestSiaBackup(records[0]);
+        }
+      })
+      .catch(() => {
+        setSiaStatus('Reconnect to Sia to refresh cloud backups.');
+      });
   }, []);
 
   useEffect(() => {
@@ -515,6 +554,108 @@ export default function App() {
     }
   };
 
+  const connectSiaStorage = async () => {
+    setIsSiaBusy(true);
+    setSiaStatus('Opening Sia approval flow...');
+    setSiaApprovalUrl('');
+    setSiaRecoveryPhrase('');
+
+    try {
+      const result = await connectSia(siaRecoveryPhraseToUse, (url) => {
+        setSiaApprovalUrl(url);
+        setSiaStatus('Approve Murmur in Sia, then return here.');
+        window.open(url, '_blank', 'noopener,noreferrer');
+      });
+      const records = await listSiaBackups();
+
+      setIsSiaConnected(true);
+      setSiaRecoveryPhrase(result.recoveryPhrase);
+      setLatestSiaBackup(records[0] ?? getStoredSiaBackup());
+      setSiaStatus(
+        siaRecoveryPhraseToUse.trim()
+          ? 'Connected to Sia with your recovery phrase.'
+          : 'Connected to Sia. Save the recovery phrase shown below before relying on cloud restore.',
+      );
+    } catch (siaError) {
+      setSiaStatus(
+        siaError instanceof Error
+          ? siaError.message
+          : 'Unable to connect to Sia storage.',
+      );
+    } finally {
+      setIsSiaBusy(false);
+    }
+  };
+
+  const uploadCloudBackup = async () => {
+    if (!memos.length) {
+      setSiaStatus('Record a memo before uploading a Sia backup.');
+      return;
+    }
+
+    setIsSiaBusy(true);
+    setSiaStatus('Uploading encrypted backup snapshot to Sia...');
+
+    try {
+      const record = await uploadSiaBackup(memos);
+      setIsSiaConnected(true);
+      setLatestSiaBackup(record);
+      setSiaStatus(
+        `Sia backup uploaded with ${record.memoCount} ${
+          record.memoCount === 1 ? 'memo' : 'memos'
+        }.`,
+      );
+    } catch (siaError) {
+      setSiaStatus(
+        siaError instanceof Error
+          ? siaError.message
+          : 'Unable to upload backup to Sia.',
+      );
+    } finally {
+      setIsSiaBusy(false);
+    }
+  };
+
+  const restoreCloudBackup = async () => {
+    setIsSiaBusy(true);
+    setSiaStatus('Looking for the latest Murmur backup on Sia...');
+
+    try {
+      const records = await listSiaBackups();
+      const record = records[0] ?? latestSiaBackup;
+
+      if (!record) {
+        setSiaStatus('No Murmur backups were found on Sia for this app key.');
+        return;
+      }
+
+      const backupFile = await downloadSiaBackup(record.objectId);
+      await importBackup(backupFile);
+      setLatestSiaBackup(record);
+      setSiaStatus(
+        `Restored Sia backup from ${new Date(
+          record.uploadedAt,
+        ).toLocaleString()}.`,
+      );
+    } catch (siaError) {
+      setSiaStatus(
+        siaError instanceof Error
+          ? siaError.message
+          : 'Unable to restore from Sia.',
+      );
+    } finally {
+      setIsSiaBusy(false);
+    }
+  };
+
+  const disconnectSiaStorage = () => {
+    clearSiaConnection();
+    setIsSiaConnected(false);
+    setSiaApprovalUrl('');
+    setSiaRecoveryPhrase('');
+    setSiaStatus('Disconnected Sia from this browser.');
+  };
+
   const refreshPrivacyStatus = async () => {
     setPrivacyStatus(await getPrivacyStatus());
   };
@@ -755,10 +896,19 @@ export default function App() {
             <p className="eyebrow">Recovery</p>
             <h2>Backup & restore</h2>
             <p className="panel-copy">
-              Murmur saves recordings on this device. To recover after theft or
-              a broken phone, export a backup and store it somewhere safe before
-              anything happens.
+              Murmur saves recordings on this device first. Export a file for
+              manual safekeeping, or connect Sia to pin encrypted cloud backup
+              snapshots that can be restored on a replacement device.
             </p>
+          </div>
+          <div className="privacy-status-list">
+            <span>Sia: {isSiaConnected ? 'Connected' : 'Not connected'}</span>
+            <span>
+              Latest cloud:{' '}
+              {latestSiaBackup
+                ? new Date(latestSiaBackup.uploadedAt).toLocaleDateString()
+                : 'None'}
+            </span>
           </div>
           <div className="utility-actions">
             <button
@@ -780,6 +930,75 @@ export default function App() {
               accept="application/json,.json"
               onChange={(event) => void importBackup(event.target.files?.[0])}
             />
+          </div>
+          <div className="sia-panel">
+            <label>
+              <span>Sia recovery phrase, if restoring an existing account</span>
+              <textarea
+                className="compact-textarea"
+                placeholder="Paste your saved Sia recovery phrase here, or leave blank to create a new one."
+                value={siaRecoveryPhraseToUse}
+                onChange={(event) =>
+                  setSiaRecoveryPhraseToUse(event.target.value)
+                }
+              />
+            </label>
+            <div className="utility-actions">
+              <button
+                className="primary-button"
+                disabled={isSiaBusy}
+                onClick={() => void connectSiaStorage()}
+              >
+                {isSiaConnected ? 'Reconnect Sia' : 'Connect Sia'}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={isSiaBusy || !isSiaConnected}
+                onClick={() => void uploadCloudBackup()}
+              >
+                Upload to Sia
+              </button>
+              <button
+                className="secondary-button"
+                disabled={isSiaBusy || !isSiaConnected}
+                onClick={() => void restoreCloudBackup()}
+              >
+                Restore from Sia
+              </button>
+              <button
+                className="text-danger-button"
+                disabled={isSiaBusy || !isSiaConnected}
+                onClick={disconnectSiaStorage}
+              >
+                Disconnect Sia
+              </button>
+            </div>
+            {siaApprovalUrl ? (
+              <p className="utility-status">
+                Approve connection:{' '}
+                <a href={siaApprovalUrl} target="_blank" rel="noreferrer">
+                  Open Sia approval
+                </a>
+              </p>
+            ) : null}
+            {siaRecoveryPhrase ? (
+              <div className="recovery-phrase" role="status">
+                <span>Save this Sia recovery phrase:</span>
+                <code>{siaRecoveryPhrase}</code>
+              </div>
+            ) : null}
+            {latestSiaBackup ? (
+              <p className="utility-status">
+                Latest Sia object: <code>{latestSiaBackup.objectId}</code> (
+                {latestSiaBackup.memoCount}{' '}
+                {latestSiaBackup.memoCount === 1 ? 'memo' : 'memos'})
+              </p>
+            ) : null}
+            {siaStatus ? (
+              <p className="utility-status" role="status">
+                {siaStatus}
+              </p>
+            ) : null}
           </div>
           {backupStatus ? (
             <p className="utility-status" role="status">

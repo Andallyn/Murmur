@@ -505,7 +505,8 @@ h2 {
 
 .utility-actions,
 .privacy-status-list,
-.passcode-grid {
+.passcode-grid,
+.sia-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -528,6 +529,49 @@ h2 {
 
 .passcode-grid label {
   flex: 1 1 220px;
+}
+
+.sia-panel {
+  align-items: stretch;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sia-panel label {
+  flex: 1 1 100%;
+}
+
+.compact-textarea {
+  min-height: 76px;
+}
+
+.recovery-phrase {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(251, 207, 232, 0.22);
+  border-radius: 18px;
+  background: rgba(236, 72, 153, 0.1);
+  color: #fbcfe8;
+}
+
+.recovery-phrase span {
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+code {
+  overflow-wrap: anywhere;
+  color: #fef3c7;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.utility-status a {
+  color: #f0abfc;
+  font-weight: 900;
 }
 
 .utility-status {

@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@siafoundation/sia-storage": "^0.0.12",
     "react": "latest",
     "react-dom": "latest"
   },
