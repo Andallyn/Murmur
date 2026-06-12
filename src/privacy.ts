@@ -37,18 +37,24 @@ function bytesToBase64Url(bytes: Uint8Array): string {
     .replace(/=+$/g, '');
 }
 
-function base64UrlToBytes(value: string): Uint8Array {
+function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
   const padded = base64.padEnd(
     base64.length + ((4 - (base64.length % 4)) % 4),
     '=',
   );
+  const binary = atob(padded);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
 
-  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
 }
 
-function randomBytes(length: number): Uint8Array {
-  const bytes = new Uint8Array(length);
+function randomBytes(length: number): Uint8Array<ArrayBuffer> {
+  const bytes = new Uint8Array(new ArrayBuffer(length));
   getCrypto().getRandomValues(bytes);
   return bytes;
 }
@@ -68,7 +74,7 @@ function timingSafeEqual(left: string, right: string): boolean {
 
 async function hashPasscode(
   passcode: string,
-  salt: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
   iterations: number,
 ): Promise<string> {
   const crypto = getCrypto();
@@ -187,7 +193,7 @@ export async function registerBiometric(): Promise<void> {
     },
   });
 
-  if (!credential || !('rawId' in credential)) {
+  if (!(credential instanceof PublicKeyCredential)) {
     throw new Error('Biometric setup was canceled.');
   }
 
