@@ -45,8 +45,10 @@ import './styles.css';
 
 const TIMER_INTERVAL_MS = 250;
 const RECORDING_TIMESLICE_MS = 1_000;
+const WELCOME_DISMISSED_KEY = 'murmur.welcomeDismissedDate.v1';
 
 type RecordingState = 'idle' | 'recording' | 'paused';
+type MenuPanel = 'settings' | 'storage' | 'privacy' | null;
 
 const preferredMimeTypes = [
   'audio/webm;codecs=opus',
@@ -112,6 +114,13 @@ export default function App() {
   const [recordingSeries, setRecordingSeries] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeMenuPanel, setActiveMenuPanel] = useState<MenuPanel>(null);
+  const [showWelcome, setShowWelcome] = useState(
+    () =>
+      localStorage.getItem(WELCOME_DISMISSED_KEY) !==
+      new Date().toDateString(),
+  );
   const [backupStatus, setBackupStatus] = useState('');
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>({
     passcodeEnabled: false,
@@ -780,6 +789,18 @@ export default function App() {
   const canLockApp =
     privacyStatus.passcodeEnabled || privacyStatus.biometricEnabled;
 
+  const dismissWelcome = () => {
+    localStorage.setItem(WELCOME_DISMISSED_KEY, new Date().toDateString());
+    setShowWelcome(false);
+  };
+
+  const openMenuPanel = (panel: Exclude<MenuPanel, null>) => {
+    setActiveMenuPanel((currentPanel) =>
+      currentPanel === panel ? null : panel,
+    );
+    setIsMenuOpen(false);
+  };
+
   if (!isPrivacyReady) {
     return (
       <main className="lock-screen">
@@ -913,44 +934,55 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <section className="hero">
-        <div className="hero-content">
-          <div className="brand-lockup">
-            <Logo />
-            <div>
-              <p className="eyebrow">Private voice notes</p>
-              <h1>Murmur</h1>
+      <header className="app-header">
+        <div className="brand-lockup">
+          <Logo size="small" />
+          <div>
+            <p className="eyebrow">Private voice notes</p>
+            <h1>Murmur</h1>
+          </div>
+        </div>
+        <div className="menu-wrap">
+          <button
+            className="menu-button"
+            aria-expanded={isMenuOpen}
+            aria-label="Open menu"
+            onClick={() => setIsMenuOpen((isOpen) => !isOpen)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          {isMenuOpen ? (
+            <div className="menu-popover" role="menu">
+              <button role="menuitem" onClick={() => openMenuPanel('settings')}>
+                Settings
+              </button>
+              <button role="menuitem" onClick={() => openMenuPanel('storage')}>
+                Storage & restore
+              </button>
+              <button role="menuitem" onClick={() => openMenuPanel('privacy')}>
+                Privacy lock
+              </button>
             </div>
-          </div>
-          <p className="hero-copy">
-            Capture quick thoughts, meeting takeaways, and reminders. Memos
-            are stored through Sia-backed snapshots and can be replayed,
-            organized, or restored anytime.
-          </p>
-          <div className="hero-badges" aria-label="Murmur highlights">
-            <span>Sia storage partner</span>
-            <span>Series-ready</span>
-            <span>Restore-ready</span>
-          </div>
+          ) : null}
         </div>
-        <div className="hero-visual" aria-label="Memo library stats">
-          <div className="orbital-ring" />
-          <div className="stats-card">
-            <Logo size="small" />
-            <span>{memos.length}</span>
-            <p>{memos.length === 1 ? 'saved memo' : 'saved memos'}</p>
-            <small>{formatDuration(totalDurationMs)} total audio</small>
+      </header>
+
+      {showWelcome ? (
+        <section className="welcome-card" aria-label="Welcome message">
+          <div>
+            <p className="eyebrow">Welcome back</p>
+            <h2>What would you like to record today?</h2>
+            <p className="panel-copy">
+              Add a name, choose a series if you want one, then start recording.
+            </p>
           </div>
-          <div className="wave-card" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-        </div>
-      </section>
+          <button className="secondary-button" onClick={dismissWelcome}>
+            Got it
+          </button>
+        </section>
+      ) : null}
 
       <section className="recorder-panel" aria-labelledby="recorder-title">
         <div className="section-heading">
@@ -1019,187 +1051,219 @@ export default function App() {
         </div>
       ) : null}
 
-      <section className="utility-grid" aria-label="Recovery and privacy">
-        <article className="utility-card">
-          <div className="section-heading">
-            <p className="eyebrow">Recovery</p>
-            <h2>Backup & restore</h2>
-            <p className="panel-copy">
-              Sia is Murmur&apos;s storage partner. Every recording change syncs
-              to a pinned Sia backup snapshot, with manual export available as
-              a portable fallback.
+      {activeMenuPanel ? (
+        <section className="menu-panel-shell" aria-label="Menu panel">
+          <div className="menu-panel-heading">
+            <p className="eyebrow">
+              {activeMenuPanel === 'settings'
+                ? 'Settings'
+                : activeMenuPanel === 'storage'
+                  ? 'Storage & restore'
+                  : 'Privacy'}
             </p>
-          </div>
-          <div className="privacy-status-list">
-            <span>Sia: Connected</span>
-            <span>
-              Sync:{' '}
-              {isSiaSyncing
-                ? 'In progress'
-                : latestSiaBackup
-                  ? 'Current'
-                  : 'Waiting for first recording'}
-            </span>
-            <span>
-              Latest Sia snapshot:{' '}
-              {latestSiaBackup
-                ? new Date(latestSiaBackup.uploadedAt).toLocaleDateString()
-                : 'None'}
-            </span>
-          </div>
-          <div className="utility-actions">
-            <button
-              className="secondary-button"
-              onClick={() => void exportBackup()}
-            >
-              Export backup
-            </button>
-            <button
-              className="secondary-button"
-              onClick={() => backupInputRef.current?.click()}
-            >
-              Restore backup
-            </button>
-            <input
-              ref={backupInputRef}
-              className="file-input"
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => void importBackup(event.target.files?.[0])}
-            />
-          </div>
-          <div className="sia-panel">
-            <div className="utility-actions">
-              <button
-                className="secondary-button"
-                disabled={isSiaBusy || isSiaSyncing}
-                onClick={() => void uploadCloudBackup()}
-              >
-                Sync now
-              </button>
-              <button
-                className="secondary-button"
-                disabled={isSiaBusy || isSiaSyncing}
-                onClick={() => void restoreCloudBackup()}
-              >
-                Restore from Sia
-              </button>
-            </div>
-            {siaApprovalUrl ? (
-              <p className="utility-status">
-                Approve connection:{' '}
-                <a href={siaApprovalUrl} target="_blank" rel="noreferrer">
-                  Open Sia approval
-                </a>
-              </p>
-            ) : null}
-            {siaRecoveryPhrase ? (
-              <div className="recovery-phrase" role="status">
-                <span>Save this Sia recovery phrase:</span>
-                <code>{siaRecoveryPhrase}</code>
-              </div>
-            ) : null}
-            {latestSiaBackup ? (
-              <p className="utility-status">
-                Latest Sia object: <code>{latestSiaBackup.objectId}</code> (
-                {latestSiaBackup.memoCount}{' '}
-                {latestSiaBackup.memoCount === 1 ? 'memo' : 'memos'})
-              </p>
-            ) : null}
-            {siaStatus ? (
-              <p className="utility-status" role="status">
-                {siaStatus}
-              </p>
-            ) : null}
-          </div>
-          {backupStatus ? (
-            <p className="utility-status" role="status">
-              {backupStatus}
-            </p>
-          ) : null}
-        </article>
-
-        <article className="utility-card">
-          <div className="section-heading">
-            <p className="eyebrow">Privacy</p>
-            <h2>App lock</h2>
-            <p className="panel-copy">
-              Add a passcode and optional device biometrics to keep casual
-              access out of Murmur on this browser.
-            </p>
-          </div>
-          <div className="privacy-status-list">
-            <span>
-              Passcode:{' '}
-              {privacyStatus.passcodeEnabled ? 'Enabled' : 'Not enabled'}
-            </span>
-            <span>
-              Biometrics:{' '}
-              {privacyStatus.biometricEnabled
-                ? 'Enabled'
-                : privacyStatus.biometricAvailable
-                  ? 'Available'
-                  : 'Unavailable'}
-            </span>
-          </div>
-          <div className="passcode-grid">
-            <label>
-              <span>New passcode</span>
-              <input
-                autoComplete="new-password"
-                type="password"
-                value={setupPasscodeValue}
-                onChange={(event) => setSetupPasscodeValue(event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Confirm passcode</span>
-              <input
-                autoComplete="new-password"
-                type="password"
-                value={setupPasscodeConfirm}
-                onChange={(event) =>
-                  setSetupPasscodeConfirm(event.target.value)
-                }
-              />
-            </label>
-          </div>
-          <div className="utility-actions">
-            <button
-              className="secondary-button"
-              onClick={() => void savePasscode()}
-            >
-              Save passcode
-            </button>
-            <button
-              className="secondary-button"
-              disabled={!privacyStatus.biometricAvailable}
-              onClick={() => void enableBiometric()}
-            >
-              Enable fingerprint / biometrics
-            </button>
-            <button
-              className="secondary-button"
-              disabled={!canLockApp}
-              onClick={() => setIsLocked(true)}
-            >
-              Lock now
-            </button>
             <button
               className="text-danger-button"
-              disabled={!canLockApp}
-              onClick={() => void disablePrivacy()}
+              onClick={() => setActiveMenuPanel(null)}
             >
-              Disable lock
+              Close
             </button>
           </div>
-          {privacyMessage ? (
-            <p className="utility-status" role="status">
-              {privacyMessage}
-            </p>
+
+          {activeMenuPanel === 'settings' ? (
+            <article className="utility-card">
+              <div className="section-heading">
+                <h2>App settings</h2>
+                <p className="panel-copy">
+                  Quick status without crowding the recorder.
+                </p>
+              </div>
+              <div className="privacy-status-list">
+                <span>{memos.length} recordings</span>
+                <span>{formatDuration(totalDurationMs)} total audio</span>
+                <span>
+                  Sync:{' '}
+                  {isSiaSyncing
+                    ? 'In progress'
+                    : latestSiaBackup
+                      ? 'Current'
+                      : 'Waiting for first recording'}
+                </span>
+              </div>
+              <div className="utility-actions">
+                <button
+                  className="secondary-button"
+                  disabled={isSiaBusy || isSiaSyncing}
+                  onClick={() => void uploadCloudBackup()}
+                >
+                  Sync now
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={!canLockApp}
+                  onClick={() => setIsLocked(true)}
+                >
+                  Lock app
+                </button>
+              </div>
+              {siaStatus ? (
+                <p className="utility-status" role="status">
+                  {siaStatus}
+                </p>
+              ) : null}
+            </article>
           ) : null}
-        </article>
-      </section>
+
+          {activeMenuPanel === 'storage' ? (
+            <article className="utility-card">
+              <div className="section-heading">
+                <h2>Storage & restore</h2>
+                <p className="panel-copy">
+                  Recording changes sync to Sia automatically. Use these
+                  controls only when you need a manual export or restore.
+                </p>
+              </div>
+              <div className="privacy-status-list">
+                <span>Sia: Connected</span>
+                <span>
+                  Latest snapshot:{' '}
+                  {latestSiaBackup
+                    ? new Date(latestSiaBackup.uploadedAt).toLocaleDateString()
+                    : 'None'}
+                </span>
+              </div>
+              <div className="utility-actions">
+                <button
+                  className="secondary-button"
+                  onClick={() => void exportBackup()}
+                >
+                  Export backup
+                </button>
+                <button
+                  className="secondary-button"
+                  onClick={() => backupInputRef.current?.click()}
+                >
+                  Restore file
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={isSiaBusy || isSiaSyncing}
+                  onClick={() => void restoreCloudBackup()}
+                >
+                  Restore from Sia
+                </button>
+                <input
+                  ref={backupInputRef}
+                  className="file-input"
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={(event) =>
+                    void importBackup(event.target.files?.[0])
+                  }
+                />
+              </div>
+              {latestSiaBackup ? (
+                <p className="utility-status">
+                  Latest Sia object: <code>{latestSiaBackup.objectId}</code>
+                </p>
+              ) : null}
+              {backupStatus ? (
+                <p className="utility-status" role="status">
+                  {backupStatus}
+                </p>
+              ) : null}
+              {siaStatus ? (
+                <p className="utility-status" role="status">
+                  {siaStatus}
+                </p>
+              ) : null}
+            </article>
+          ) : null}
+
+          {activeMenuPanel === 'privacy' ? (
+            <article className="utility-card">
+              <div className="section-heading">
+                <h2>App lock</h2>
+                <p className="panel-copy">
+                  Add a passcode and optional device biometrics to keep casual
+                  access out of Murmur on this browser.
+                </p>
+              </div>
+              <div className="privacy-status-list">
+                <span>
+                  Passcode:{' '}
+                  {privacyStatus.passcodeEnabled ? 'Enabled' : 'Not enabled'}
+                </span>
+                <span>
+                  Biometrics:{' '}
+                  {privacyStatus.biometricEnabled
+                    ? 'Enabled'
+                    : privacyStatus.biometricAvailable
+                      ? 'Available'
+                      : 'Unavailable'}
+                </span>
+              </div>
+              <div className="passcode-grid">
+                <label>
+                  <span>New passcode</span>
+                  <input
+                    autoComplete="new-password"
+                    type="password"
+                    value={setupPasscodeValue}
+                    onChange={(event) =>
+                      setSetupPasscodeValue(event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Confirm passcode</span>
+                  <input
+                    autoComplete="new-password"
+                    type="password"
+                    value={setupPasscodeConfirm}
+                    onChange={(event) =>
+                      setSetupPasscodeConfirm(event.target.value)
+                    }
+                  />
+                </label>
+              </div>
+              <div className="utility-actions">
+                <button
+                  className="secondary-button"
+                  onClick={() => void savePasscode()}
+                >
+                  Save passcode
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={!privacyStatus.biometricAvailable}
+                  onClick={() => void enableBiometric()}
+                >
+                  Enable fingerprint / biometrics
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={!canLockApp}
+                  onClick={() => setIsLocked(true)}
+                >
+                  Lock now
+                </button>
+                <button
+                  className="text-danger-button"
+                  disabled={!canLockApp}
+                  onClick={() => void disablePrivacy()}
+                >
+                  Disable lock
+                </button>
+              </div>
+              {privacyMessage ? (
+                <p className="utility-status" role="status">
+                  {privacyMessage}
+                </p>
+              ) : null}
+            </article>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="memo-toolbar" aria-label="Memo search">
         <div className="section-heading">

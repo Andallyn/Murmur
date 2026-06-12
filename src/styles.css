@@ -73,6 +73,113 @@ button:disabled {
   padding: 36px 0 52px;
 }
 
+.app-header {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  background: rgba(13, 9, 24, 0.74);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+}
+
+.app-header h1 {
+  font-size: clamp(2rem, 6vw, 3.6rem);
+}
+
+.menu-wrap {
+  position: relative;
+}
+
+.menu-button {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-button span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: #fff7ed;
+}
+
+.menu-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  width: 220px;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  background: rgba(13, 9, 24, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(18px);
+}
+
+.menu-popover button {
+  padding: 12px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #f8fafc;
+  font-weight: 850;
+  text-align: left;
+}
+
+.menu-popover button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.welcome-card,
+.menu-panel-shell {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  background: rgba(13, 9, 24, 0.74);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(18px);
+}
+
+.welcome-card {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding: 22px 24px;
+}
+
+.welcome-card h2 {
+  font-size: clamp(1.55rem, 4vw, 2.5rem);
+}
+
+.menu-panel-shell {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 18px;
+}
+
+.menu-panel-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .lock-screen {
   display: grid;
   width: min(100%, 560px);
@@ -773,13 +880,24 @@ audio {
 @media (max-width: 640px) {
   .hero,
   .recorder-panel,
-  .memo-toolbar {
+  .memo-toolbar,
+  .welcome-card {
     padding: 22px;
   }
 
+  .app-header,
+  .welcome-card {
+    align-items: flex-start;
+  }
+
   .brand-lockup,
-  .memo-toolbar {
+  .memo-toolbar,
+  .welcome-card {
     display: grid;
+  }
+
+  .menu-popover {
+    right: -4px;
   }
 
   .hero-visual {
