@@ -118,7 +118,7 @@ async function getConnectedSdk(): Promise<Sdk> {
   const appKeyHex = localStorage.getItem(SIA_APP_KEY_STORAGE_KEY);
 
   if (!appKeyHex) {
-    throw new Error('Connect Murmur to Sia before using cloud backups.');
+    throw new Error('Set up Sia storage before using Murmur.');
   }
 
   await initSia();
@@ -248,7 +248,3 @@ export async function downloadSiaBackup(objectId: string): Promise<File> {
   });
 }
 
-export function clearSiaConnection(): void {
-  activeSdk = null;
-  localStorage.removeItem(SIA_APP_KEY_STORAGE_KEY);
-}

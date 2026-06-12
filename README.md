@@ -1,18 +1,21 @@
 # Murmur
 
-Murmur is a private, browser-based voice memo recorder. It lets you capture
-audio from your microphone, replay saved memos, add searchable notes, and export
-recordings from the browser.
+Murmur is a private, browser-based voice memo recorder built with Sia Foundation
+as the storage partner. It lets you name recordings, organize them into series,
+replay saved audio, add searchable notes, and restore Sia-backed snapshots on a
+new device.
 
 ## Features
 
 - Record, pause, resume, and save voice memos with the MediaRecorder API
-- Store recordings locally in IndexedDB
-- Search across memo titles and notes
+- Require Sia storage setup before recording
+- Automatically sync recording snapshots to Sia decentralized storage
+- Name recordings before capture and group them into custom series
+- Store a local working copy in IndexedDB for fast playback
+- Search across memo titles, series, and notes
 - Edit memo details after recording
 - Replay and export individual audio files
 - Export and restore a Murmur backup file for device replacement
-- Pin encrypted backup snapshots to Sia decentralized storage
 - Add a local app lock with passcode and supported device biometrics
 
 ## Getting started
@@ -31,14 +34,14 @@ npm run dev
 
 ## Recovery and privacy
 
-Murmur is local-first: recordings live in the browser on the device where they
-were captured. If that phone or computer is lost, stolen, or broken, recordings
-can only be restored if the user previously exported a Murmur backup or uploaded
-a backup snapshot to Sia.
+Murmur requires Sia storage setup before the recorder is available. Recordings
+keep a local IndexedDB working copy for playback, and each create/edit/delete
+operation uploads a pinned Sia backup snapshot so the library can be restored on
+a replacement device.
 
-Sia cloud backup uses the `@siafoundation/sia-storage` SDK and the Sia indexer
+Sia storage uses the `@siafoundation/sia-storage` SDK and the Sia indexer
 approval flow. Murmur uploads its backup JSON as a pinned Sia object and stores
-the Sia app key in the current browser for reconnects. Users must save the Sia
+the Sia app key in the current browser for reconnects. Users must save the
 recovery phrase shown during setup; without it, a replacement device cannot
 recover the same Sia app key.
 

@@ -49,7 +49,9 @@ export function matchesMemo(memo: VoiceMemo, query: string): boolean {
     return true;
   }
 
-  return `${memo.title} ${memo.notes}`.toLowerCase().includes(normalizedQuery);
+  return `${memo.title} ${memo.series} ${memo.notes}`
+    .toLowerCase()
+    .includes(normalizedQuery);
 }
 
 export function getAudioExtension(mimeType: string): string {

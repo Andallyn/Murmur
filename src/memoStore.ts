@@ -58,7 +58,12 @@ export async function getAllMemos(): Promise<VoiceMemo[]> {
     store.getAll(),
   );
 
-  return sortMemosByNewest(memos);
+  return sortMemosByNewest(
+    memos.map((memo) => ({
+      ...memo,
+      series: memo.series ?? '',
+    })),
+  );
 }
 
 export async function saveMemo(memo: VoiceMemo): Promise<VoiceMemo> {
@@ -69,7 +74,7 @@ export async function saveMemo(memo: VoiceMemo): Promise<VoiceMemo> {
 
 export async function updateMemo(
   id: string,
-  updates: Pick<VoiceMemo, 'title' | 'notes'>,
+  updates: Pick<VoiceMemo, 'title' | 'series' | 'notes'>,
 ): Promise<VoiceMemo> {
   const currentMemo = await withStore('readonly', (store) =>
     store.get(id),

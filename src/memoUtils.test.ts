@@ -13,6 +13,7 @@ function createMemo(overrides: Partial<VoiceMemo>): VoiceMemo {
   return {
     id: 'memo-1',
     title: 'Standup recap',
+    series: 'Launch diary',
     notes: 'Ship the recording UI',
     createdAt: '2026-06-12T14:21:00.000Z',
     durationMs: 61_000,
@@ -45,6 +46,7 @@ describe('memo utilities', () => {
     const memo = createMemo({});
 
     expect(matchesMemo(memo, 'standup')).toBe(true);
+    expect(matchesMemo(memo, 'launch')).toBe(true);
     expect(matchesMemo(memo, 'recording')).toBe(true);
     expect(matchesMemo(memo, 'budget')).toBe(false);
   });

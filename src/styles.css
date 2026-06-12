@@ -412,11 +412,16 @@ h2 {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
+.recording-fields,
 .recording-controls {
   display: flex;
   flex-wrap: wrap;
   grid-column: 1 / -1;
   gap: 12px;
+}
+
+.recording-fields label {
+  flex: 1 1 240px;
 }
 
 .status-text {

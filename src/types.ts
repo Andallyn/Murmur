@@ -1,6 +1,7 @@
 export interface VoiceMemo {
   id: string;
   title: string;
+  series: string;
   notes: string;
   createdAt: string;
   durationMs: number;
@@ -11,5 +12,6 @@ export interface VoiceMemo {
 
 export interface DraftMemo {
   title: string;
+  series: string;
   notes: string;
 }

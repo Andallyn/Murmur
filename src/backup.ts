@@ -7,6 +7,7 @@ const BACKUP_VERSION = 1;
 interface BackupMemo {
   id: string;
   title: string;
+  series?: string;
   notes: string;
   createdAt: string;
   durationMs: number;
@@ -64,6 +65,7 @@ export async function createBackupFile(memos: VoiceMemo[]): Promise<Blob> {
     memos.map(async (memo) => ({
       id: memo.id,
       title: memo.title,
+      series: memo.series,
       notes: memo.notes,
       createdAt: memo.createdAt,
       durationMs: memo.durationMs,
@@ -97,6 +99,7 @@ export async function readBackupFile(file: File): Promise<VoiceMemo[]> {
       return {
         id: memo.id,
         title: memo.title,
+        series: memo.series ?? '',
         notes: memo.notes,
         createdAt: memo.createdAt,
         durationMs: memo.durationMs,
