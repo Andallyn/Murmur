@@ -62,6 +62,10 @@ export async function getAllMemos(): Promise<VoiceMemo[]> {
     memos.map((memo) => ({
       ...memo,
       series: memo.series ?? '',
+      transcript: memo.transcript ?? '',
+      summary: memo.summary ?? '',
+      aiStatus: memo.aiStatus ?? 'idle',
+      aiError: memo.aiError ?? '',
     })),
   );
 }

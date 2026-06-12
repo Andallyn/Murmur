@@ -13,6 +13,7 @@ import {
   createBackupFileName,
   readBackupFile,
 } from './backup';
+import { analyzeRecording } from './ai';
 import {
   deleteMemo,
   getAllMemos,
@@ -553,6 +554,70 @@ export default function App() {
     }
   };
 
+  const saveAnalyzedMemo = async (
+    memo: VoiceMemo,
+    updates: Pick<VoiceMemo, 'transcript' | 'summary' | 'aiStatus' | 'aiError'>,
+    syncMessage: string,
+  ) => {
+    await saveMemo({
+      ...memo,
+      ...updates,
+    });
+    const loadedMemos = await getAllMemos();
+
+    setMemos(loadedMemos);
+    setDrafts(createDrafts(loadedMemos));
+
+    try {
+      await syncMemosToSia(loadedMemos, syncMessage);
+    } catch {
+      // syncMemosToSia already surfaces the Sia error in the UI.
+    }
+  };
+
+  const analyzeMemo = async (memo: VoiceMemo) => {
+    try {
+      const analysis = await analyzeRecording(memo.blob, memo.mimeType);
+
+      await saveAnalyzedMemo(
+        memo,
+        {
+          transcript: analysis.transcript,
+          summary: analysis.summary,
+          aiStatus: 'complete',
+          aiError: '',
+        },
+        'AI gist saved and synced to Sia.',
+      );
+    } catch {
+      await saveAnalyzedMemo(
+        memo,
+        {
+          transcript: '',
+          summary: '',
+          aiStatus: 'failed',
+          aiError: 'AI could not transcribe this memo. Try again later.',
+        },
+        'Recording saved, but AI transcription needs a retry.',
+      );
+    }
+  };
+
+  const retryAnalysis = async (memo: VoiceMemo) => {
+    const processingMemo: VoiceMemo = {
+      ...memo,
+      aiStatus: 'processing',
+      aiError: '',
+    };
+
+    await saveMemo(processingMemo);
+    const loadedMemos = await getAllMemos();
+
+    setMemos(loadedMemos);
+    setDrafts(createDrafts(loadedMemos));
+    void analyzeMemo(processingMemo);
+  };
+
   const persistRecording = async (mimeType: string) => {
     clearTimer();
     stopStream(streamRef.current);
@@ -574,6 +639,10 @@ export default function App() {
       title: createDefaultTitle(createdAt),
       series: '',
       notes: '',
+      transcript: '',
+      summary: '',
+      aiStatus: 'processing',
+      aiError: '',
       createdAt: createdAt.toISOString(),
       durationMs: finalDurationRef.current,
       blob,
@@ -594,7 +663,11 @@ export default function App() {
           notes: savedMemo.notes,
         },
       }));
-      await syncMemosToSia(nextMemos, 'Recording saved and synced to Sia.');
+      await syncMemosToSia(
+        nextMemos,
+        'Recording saved. AI is pulling the gist.',
+      );
+      void analyzeMemo(savedMemo);
       setRecordingMs(0);
       setError('');
     } catch {
@@ -1729,10 +1802,42 @@ export default function App() {
 
                 <MemoAudio memo={memo} />
 
+                <div className={`ai-insight ai-${memo.aiStatus}`}>
+                  <div>
+                    <span>AI gist</span>
+                    {memo.aiStatus === 'processing' ? (
+                      <p>Pulling the gist from your voice note...</p>
+                    ) : null}
+                    {memo.aiStatus === 'complete' ? (
+                      <p>{memo.summary || 'Transcript ready.'}</p>
+                    ) : null}
+                    {memo.aiStatus === 'failed' ? (
+                      <p>{memo.aiError || 'AI transcription failed.'}</p>
+                    ) : null}
+                    {memo.aiStatus === 'idle' ? (
+                      <p>AI gist will appear after transcription.</p>
+                    ) : null}
+                  </div>
+                  {memo.aiStatus === 'failed' ? (
+                    <button
+                      className="secondary-button"
+                      onClick={() => void retryAnalysis(memo)}
+                    >
+                      Retry AI
+                    </button>
+                  ) : null}
+                  {memo.aiStatus === 'complete' && memo.transcript ? (
+                    <details>
+                      <summary>Transcript</summary>
+                      <p>{memo.transcript}</p>
+                    </details>
+                  ) : null}
+                </div>
+
                 <label>
                   <span>Notes</span>
                   <textarea
-                    placeholder="Add context, keywords, or a transcript..."
+                    placeholder="Add context, keywords, or follow-up thoughts..."
                     value={draft.notes}
                     onChange={(event) =>
                       updateDraft(memo.id, 'notes', event.target.value)

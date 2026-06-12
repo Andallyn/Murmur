@@ -12,8 +12,9 @@ notes, and restore Sia-backed snapshots on a new device.
 - Automatically sync recording snapshots to Sia decentralized storage
 - Start recording instantly from a large mic-first capture screen
 - Name recordings after capture and tag them with emoji moods
+- Auto-transcribe recordings with Whisper and generate a one-line AI summary
 - Store a local working copy in IndexedDB for fast playback
-- Search across memo titles, moods, and notes
+- Search across memo titles, moods, notes, transcripts, and summaries
 - Edit memo details after recording
 - Replay and export individual audio files
 - Set browser notifications for daily recording reminders
@@ -34,6 +35,17 @@ npm run dev
 - `npm run build` - type-check and build for production
 - `npm run lint` - run ESLint
 - `npm test` - run the Vitest suite
+
+## AI transcription
+
+Murmur is positioned as AI-first: recordings become searchable thoughts, not
+just audio files. After a memo is saved, the app sends the audio to the
+serverless `/api/transcribe` endpoint, which calls OpenAI Whisper for
+transcription and returns a one-line summary.
+
+Set `OPENAI_API_KEY` in the deployment environment before using transcription.
+Optionally set `OPENAI_SUMMARY_MODEL` to override the summary model; otherwise
+the API uses `gpt-4o-mini`.
 
 ## Recovery and privacy
 
