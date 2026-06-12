@@ -3,6 +3,10 @@ export interface MemoAnalysis {
   summary: string;
 }
 
+interface ApiError {
+  error?: string;
+}
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -33,7 +37,16 @@ export async function analyzeRecording(
   });
 
   if (!response.ok) {
-    throw new Error('Unable to analyze this recording.');
+    let message = 'Unable to analyze this recording.';
+
+    try {
+      const data = (await response.json()) as ApiError;
+      message = data.error || message;
+    } catch {
+      // Keep the generic message when the API does not return JSON.
+    }
+
+    throw new Error(message);
   }
 
   const data = (await response.json()) as Partial<MemoAnalysis>;

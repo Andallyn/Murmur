@@ -15,6 +15,7 @@ notes, and restore Sia-backed snapshots on a new device.
 - Auto-transcribe recordings with Whisper and generate a one-line AI summary
 - Store a local working copy in IndexedDB for fast playback
 - Search across memo titles, moods, notes, transcripts, and summaries
+- Browse memos grouped by emoji mood with relative timestamps
 - Edit memo details after recording
 - Replay and export individual audio files
 - Set browser notifications for daily recording reminders

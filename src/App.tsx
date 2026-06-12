@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createDefaultTitle,
-  formatBytes,
   formatDuration,
   getAudioExtension,
   matchesMemo,
@@ -112,6 +111,8 @@ const moodTags = [
   '💭 diary',
 ];
 
+const fallbackMoodTag = '✨ random';
+
 const preferredMimeTypes = [
   'audio/webm;codecs=opus',
   'audio/webm',
@@ -153,6 +154,75 @@ function sanitizeFileName(value: string): string {
 
 function stopStream(stream: MediaStream | null): void {
   stream?.getTracks().forEach((track) => track.stop());
+}
+
+function getMoodLabel(mood: string): string {
+  const moodLabels: Record<string, string> = {
+    '🔥 idea': '🔥 Ideas',
+    '😮‍💨 vent': '😮‍💨 Vents',
+    '🧠 deep thought': '🧠 Deep thoughts',
+    '📋 reminder': '📋 Reminders',
+    '✨ random': '✨ Random drops',
+    '💭 diary': '💭 Diary entries',
+  };
+
+  return moodLabels[mood] ?? `🏷️ ${mood}`;
+}
+
+function getMemoMood(memo: VoiceMemo): string {
+  return memo.series || fallbackMoodTag;
+}
+
+function formatMemoTime(createdAt: string): string {
+  const createdDate = new Date(createdAt);
+  const elapsedMs = Date.now() - createdDate.getTime();
+  const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60_000));
+
+  if (elapsedMinutes < 1) {
+    return 'just now';
+  }
+
+  if (elapsedMinutes < 60) {
+    return `${elapsedMinutes}m ago`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+
+  if (elapsedHours < 24) {
+    return `${elapsedHours}h ago`;
+  }
+
+  if (elapsedHours < 48) {
+    return `yesterday at ${createdDate.toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    })}`;
+  }
+
+  return createdDate.toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function isDefaultMemoTitle(title: string): boolean {
+  return title === 'Untitled memo' || title.startsWith('Memo ');
+}
+
+function createTitleFromGist(summary: string, transcript: string): string {
+  const source = summary || transcript;
+  const compactTitle = source
+    .replace(/\s+/g, ' ')
+    .replace(/[.!?]+$/g, '')
+    .trim();
+
+  if (!compactTitle) {
+    return '';
+  }
+
+  return compactTitle.length > 58
+    ? `${compactTitle.slice(0, 55).trim()}...`
+    : compactTitle;
 }
 
 function getStoredReminderSettings(): ReminderSettings {
@@ -490,6 +560,30 @@ export default function App() {
     [memos, query],
   );
 
+  const groupedMemos = useMemo(() => {
+    const groupedByMood = new Map<string, VoiceMemo[]>();
+
+    filteredMemos.forEach((memo) => {
+      const mood = getMemoMood(memo);
+      const currentMemos = groupedByMood.get(mood) ?? [];
+      groupedByMood.set(mood, [...currentMemos, memo]);
+    });
+
+    const orderedMoodTags = [
+      ...moodTags,
+      ...Array.from(groupedByMood.keys()).filter(
+        (mood) => !moodTags.includes(mood),
+      ),
+    ];
+
+    return orderedMoodTags
+      .map((mood) => ({
+        mood,
+        memos: groupedByMood.get(mood) ?? [],
+      }))
+      .filter((group) => group.memos.length > 0);
+  }, [filteredMemos]);
+
   const totalDurationMs = useMemo(
     () => memos.reduce((total, memo) => total + memo.durationMs, 0),
     [memos],
@@ -556,7 +650,12 @@ export default function App() {
 
   const saveAnalyzedMemo = async (
     memo: VoiceMemo,
-    updates: Pick<VoiceMemo, 'transcript' | 'summary' | 'aiStatus' | 'aiError'>,
+    updates: Partial<
+      Pick<
+        VoiceMemo,
+        'title' | 'transcript' | 'summary' | 'aiStatus' | 'aiError'
+      >
+    >,
     syncMessage: string,
   ) => {
     await saveMemo({
@@ -578,10 +677,18 @@ export default function App() {
   const analyzeMemo = async (memo: VoiceMemo) => {
     try {
       const analysis = await analyzeRecording(memo.blob, memo.mimeType);
+      const suggestedTitle = createTitleFromGist(
+        analysis.summary,
+        analysis.transcript,
+      );
 
       await saveAnalyzedMemo(
         memo,
         {
+          title:
+            suggestedTitle && isDefaultMemoTitle(memo.title)
+              ? suggestedTitle
+              : memo.title,
           transcript: analysis.transcript,
           summary: analysis.summary,
           aiStatus: 'complete',
@@ -589,14 +696,17 @@ export default function App() {
         },
         'AI gist saved and synced to Sia.',
       );
-    } catch {
+    } catch (analysisError) {
       await saveAnalyzedMemo(
         memo,
         {
           transcript: '',
           summary: '',
           aiStatus: 'failed',
-          aiError: 'AI could not transcribe this memo. Try again later.',
+          aiError:
+            analysisError instanceof Error
+              ? analysisError.message
+              : 'AI could not transcribe this memo. Try again later.',
         },
         'Recording saved, but AI transcription needs a retry.',
       );
@@ -836,7 +946,9 @@ export default function App() {
   };
 
   const removeMemo = async (memo: VoiceMemo) => {
-    const shouldDelete = window.confirm(`Delete "${memo.title}"?`);
+    const shouldDelete = window.confirm(
+      `Delete "${memo.title}"? This removes it from Murmur and updates Sia.`,
+    );
 
     if (!shouldDelete) {
       return;
@@ -1741,21 +1853,28 @@ export default function App() {
 
       {isLoading ? (
         <p className="empty-state">Loading saved memos...</p>
-      ) : filteredMemos.length ? (
-        <section className="memo-grid" aria-label="Saved voice memos">
-          {filteredMemos.map((memo) => {
-            const draft = drafts[memo.id] ?? {
-              title: memo.title,
-              series: memo.series,
-              notes: memo.notes,
-            };
-            const hasChanges =
-              draft.title !== memo.title ||
-              draft.series !== memo.series ||
-              draft.notes !== memo.notes;
+      ) : groupedMemos.length ? (
+        <section className="memo-groups" aria-label="Saved voice memos">
+          {groupedMemos.map((group, groupIndex) => (
+            <details className="memo-group" key={group.mood} open={groupIndex === 0}>
+              <summary>
+                <span>{getMoodLabel(group.mood)}</span>
+                <small>{group.memos.length}</small>
+              </summary>
+              <div className="memo-grid">
+                {group.memos.map((memo) => {
+                  const draft = drafts[memo.id] ?? {
+                    title: memo.title,
+                    series: memo.series,
+                    notes: memo.notes,
+                  };
+                  const hasChanges =
+                    draft.title !== memo.title ||
+                    draft.series !== memo.series ||
+                    draft.notes !== memo.notes;
 
-            return (
-              <article className="memo-card" key={memo.id}>
+                  return (
+                    <article className="memo-card" key={memo.id}>
                 <div className="memo-card-header">
                   <div>
                     <label>
@@ -1768,7 +1887,7 @@ export default function App() {
                       />
                     </label>
                     <time dateTime={memo.createdAt}>
-                      {new Date(memo.createdAt).toLocaleString()}
+                      {formatMemoTime(memo.createdAt)}
                     </time>
                   </div>
                   <span className="duration-pill">
@@ -1846,14 +1965,13 @@ export default function App() {
                 </label>
 
                 <div className="memo-meta">
-                  <span>{formatBytes(memo.size)}</span>
-                  <span>{memo.mimeType || 'audio/webm'}</span>
-                  {memo.series ? <span>{memo.series}</span> : null}
+                  <span>{memo.series || fallbackMoodTag}</span>
+                  <span>{formatMemoTime(memo.createdAt)}</span>
                 </div>
 
                 <div className="memo-actions">
                   <button
-                    className="secondary-button"
+                    className="primary-button"
                     disabled={!hasChanges}
                     onClick={() => void saveDraft(memo)}
                   >
@@ -1866,7 +1984,7 @@ export default function App() {
                     Export
                   </button>
                   <button
-                    className="text-danger-button"
+                    className="delete-button"
                     onClick={() => void removeMemo(memo)}
                   >
                     Delete
@@ -1874,7 +1992,10 @@ export default function App() {
                 </div>
               </article>
             );
-          })}
+                })}
+              </div>
+            </details>
+          ))}
         </section>
       ) : (
         <p className="empty-state">

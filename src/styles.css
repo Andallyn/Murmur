@@ -932,6 +932,51 @@ label span {
   gap: 18px;
 }
 
+.memo-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.memo-group {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  background: rgba(13, 9, 24, 0.62);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(18px);
+}
+
+.memo-group > summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  cursor: pointer;
+  color: #fff7ed;
+  font-size: clamp(1.15rem, 3vw, 1.55rem);
+  font-weight: 950;
+  list-style: none;
+}
+
+.memo-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.memo-group > summary small {
+  display: grid;
+  min-width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fbcfe8;
+  font-size: 0.9rem;
+}
+
+.memo-group .memo-grid {
+  padding: 0 18px 18px;
+}
+
 .memo-card {
   position: relative;
   display: flex;
@@ -1087,6 +1132,15 @@ audio {
 .memo-meta span {
   padding: 5px 9px;
   border-radius: 999px;
+}
+
+.delete-button {
+  padding: 10px 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fda4af;
+  font-weight: 900;
 }
 
 .empty-state {
