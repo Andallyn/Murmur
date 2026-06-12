@@ -156,19 +156,6 @@ function stopStream(stream: MediaStream | null): void {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
-function getMoodLabel(mood: string): string {
-  const moodLabels: Record<string, string> = {
-    '🔥 idea': '🔥 Ideas',
-    '😮‍💨 vent': '😮‍💨 Vents',
-    '🧠 deep thought': '🧠 Deep thoughts',
-    '📋 reminder': '📋 Reminders',
-    '✨ random': '✨ Random drops',
-    '💭 diary': '💭 Diary entries',
-  };
-
-  return moodLabels[mood] ?? `🏷️ ${mood}`;
-}
-
 function getMoodEmoji(mood: string): string {
   return (mood || fallbackMoodTag).split(' ')[0] || '✨';
 }
